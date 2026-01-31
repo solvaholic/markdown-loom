@@ -43,6 +43,7 @@ Build a VS Code extension that brings essential note-taking features to markdown
 - **Autocomplete**: When user types `[[`, show all `.md` files across workspace
 - **Navigation**: Ctrl/Cmd+Click opens the linked file
 - **File Creation**: Clicking a link to non-existent file prompts to create it
+- **Acceptance**: Case-insensitive lookup; if duplicate filenames exist, completion shows `folder/filename`; works across multi-root workspaces; ignores wikilink patterns inside fenced code blocks
 
 **Implementation Reference**: Study `kortina/vscode-markdown-notes` (GPL-3.0)
 - Don't copy code directly unless you want GPL license
@@ -52,6 +53,7 @@ Build a VS Code extension that brings essential note-taking features to markdown
 - Show all files that link TO the current file
 - Update dynamically when switching files
 - Display as tree view in sidebar
+- **Acceptance**: Refreshes within 300ms after file save or switch; displays count label ("Referenced in N notes"); ignores matches inside fenced code blocks
 
 **Implementation**: 
 - Use `vscode.window.createTreeView`
@@ -61,6 +63,8 @@ Build a VS Code extension that brings essential note-taking features to markdown
 - **Pattern**: `- [ ] Task text 📅 2026-02-15 ⏫ #tag`
 - **Toggle**: Hotkey to mark done/undone (changes `[ ]` to `[x]`)
 - **Preserve Metadata**: Keep all emoji and tags when toggling
+- **Parsing rules**: Treat trailing text (emoji, tags) as part of the line; date format must be ISO 8601 (`YYYY-MM-DD`); skip tasks inside fenced code blocks
+- **Acceptance**: Toggle changes only the checkbox; preserves trailing text exactly; works in multi-root workspaces
 
 **Implementation Reference**: Study `obsidian-tasks-group/obsidian-tasks` (MIT)
 - You CAN copy their task parsing regex
@@ -80,9 +84,16 @@ path includes "work"
 
 Start with simple filters:
 - `not done` — Show unchecked tasks
-- `due before [date]` — Date comparison
+- `due before/after/on [date]` — ISO date comparison
 - `path includes [text]` — Filename filtering
 - `tag includes [tag]` — Tag filtering
+- `sort by due asc|desc` — Optional ordering
+- `limit [number]` — Default 50
+
+**Behavior**:
+- Unknown filters are ignored with a warning in output
+- Empty result shows "No tasks found" message
+- Query ignores tasks inside fenced code blocks
 
 ### 5. Quick Task Entry
 - Command palette: "Create task"
@@ -130,6 +141,11 @@ vscode-markdown-notes-tasks/
     "type": "string", 
     "default": "YYYY-MM-DD",
     "description": "Date format for task dates"
+  },
+  "markdownNotesTasks.queryLimitDefault": {
+    "type": "number",
+    "default": 50,
+    "description": "Default max tasks returned by a query"
   }
 }
 ```
@@ -162,6 +178,13 @@ vscode-markdown-notes-tasks/
 - Tasks maintain Obsidian compatibility (can edit same files on mobile)
 - Extension activates only for markdown files
 - Performance: Autocomplete responds in <100ms for vaults with 1000+ notes
+- Backlinks refresh within 300ms of save or file switch
+- Task toggle preserves trailing metadata exactly
+
+## Testing & Tooling Expectations
+- Unit tests: link resolution (case-insensitive, duplicate handling), backlinks refresh logic, task parser/toggler, query filters
+- Fixtures: workspace with two roots and >1000 fake notes for perf smoke
+- Tooling: ESLint + Prettier configs; npm scripts `lint`, `test`, `package`; VS Code launch config for Extension Host
 
 ## Resources
 - [Obsidian Tasks Parser](https://github.com/obsidian-tasks-group/obsidian-tasks/tree/main/src) (MIT - can copy)
@@ -175,9 +198,11 @@ vscode-markdown-notes-tasks/
 3. Should extension work in untitled files? (Recommend: no, needs file context)
 
 ## Delivery
-- GitHub repo with clear README
-- Published to VS Code Marketplace (optional for MVP)
-- Video demo showing both linking and task features
+- GitHub repo with README covering setup, settings, shortcuts, and limitations
+- LICENSE plus LICENSES/obsidian-tasks.MIT.txt if regex reused
+- VSIX artifact attached to release
+- GIF/video demo showing linking, backlinks refresh, task toggle, and a query
+- Publish to VS Code Marketplace (optional for MVP)
 
 ---
 
