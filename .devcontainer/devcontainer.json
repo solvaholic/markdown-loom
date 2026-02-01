@@ -19,5 +19,5 @@
     }
   },
   "remoteUser": "node",
-  "postCreateCommand": "corepack enable || true"
+  "postCreateCommand": "corepack enable || true && npm install -g @github/copilot"
 }
