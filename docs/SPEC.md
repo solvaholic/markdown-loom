@@ -23,11 +23,12 @@ Build a VS Code extension that brings essential note-taking features to markdown
 ## Daily Note 2026-01-31
 
 ### Tasks for Today
-- [ ] Review [[API Design Doc]] 📅 2026-01-31
+- [ ] Review [[API Design Doc]] ⏳ 2026-01-31
 - [ ] Send feedback on [[Q1 Planning]] ⏫ 
+- [ ] Water plants 🔁 every week on Monday ⏳ 2026-02-03
 - [x] Update [[Personal/Reading List]] ✅ 2026-01-31
 
-### Query: What's due soon?
+### Query: What's scheduled soon?
 <!-- The extension would render matching tasks here -->
 ```
 
@@ -41,7 +42,8 @@ Build a VS Code extension that brings essential note-taking features to markdown
 ### 1. Wiki-Style Linking
 - **Pattern**: `[[Note Name]]` or `[[folder/Note Name]]`
 - **Autocomplete**: When user types `[[`, show all `.md` files across workspace
-- **Navigation**: Ctrl/Cmd+Click opens the linked file
+- **Navigation**: Ctrl/Cmd+Click opens the linked file in source mode
+- **Preview Rendering**: In markdown preview, `[[links]]` render as clickable links
 - **File Creation**: Clicking a link to non-existent file prompts to create it
 - **Acceptance**: Case-insensitive lookup; if duplicate filenames exist, completion shows `folder/filename`; works across multi-root workspaces; ignores wikilink patterns inside fenced code blocks
 
@@ -60,11 +62,18 @@ Build a VS Code extension that brings essential note-taking features to markdown
 - Search workspace for `[[current-filename]]` patterns
 
 ### 3. Basic Task Support
-- **Pattern**: `- [ ] Task text 📅 2026-02-15 ⏫ #tag`
+- **Pattern**: `- [ ] Task text ⏳ 2026-02-15 🔁 every week #tag`
+- **Common emoji**: 
+  - ⏳ scheduled date (when you plan to work on it)
+  - 📅 due date (when it must be done)
+  - 🔁 recurrence rule
+  - ⏫ high priority, 🔼 medium, 🔽 low
+  - ✅ done date (added automatically on completion)
 - **Toggle**: Hotkey to mark done/undone (changes `[ ]` to `[x]`)
-- **Preserve Metadata**: Keep all emoji and tags when toggling
+- **Done Date**: When marking task done, automatically append `✅ YYYY-MM-DD` with current date if not already present
+- **Preserve Metadata**: Keep all existing emoji and tags when toggling
 - **Parsing rules**: Treat trailing text (emoji, tags) as part of the line; date format must be ISO 8601 (`YYYY-MM-DD`); skip tasks inside fenced code blocks
-- **Acceptance**: Toggle changes only the checkbox; preserves trailing text exactly; works in multi-root workspaces
+- **Acceptance**: Toggle changes checkbox and adds done date; preserves all other trailing text exactly; works in multi-root workspaces
 
 **Implementation Reference**: Study `obsidian-tasks-group/obsidian-tasks` (MIT)
 - You CAN copy their task parsing regex
@@ -78,17 +87,23 @@ Support basic query blocks:
 ```tasks
 not done
 due before tomorrow
-path includes "work"
+path includes work
 ```​
 ```
 
+**Rendering**: 
+- Queries render in VS Code's **Markdown Preview pane** (Cmd/Ctrl+Shift+V)
+- Register a custom markdown-it plugin via `markdown.markdownItPlugins` contribution point
+- User can toggle between source and preview, or view side-by-side
+- Similar to how Mermaid diagrams work in VS Code markdown preview
+
 Start with simple filters:
 - `not done` — Show unchecked tasks
-- `due before/after/on [date]` — ISO date comparison
-- `path includes [text]` — Filename filtering
-- `tag includes [tag]` — Tag filtering
+- `due before/after/on <date>` — ISO date comparison, e.g., `due before 2026-03-01`
+- `path includes <text>` — Filename filtering, e.g., `path includes work`
+- `tag includes <tag>` — Tag filtering, e.g., `tag includes #project`
 - `sort by due asc|desc` — Optional ordering
-- `limit [number]` — Default 50
+- `limit <number>` — Default 50
 
 **Behavior**:
 - Unknown filters are ignored with a warning in output
@@ -104,7 +119,7 @@ Start with simple filters:
 
 ### File Structure
 ```
-vscode-markdown-notes-tasks/
+markdown-loom/
 ├── src/
 │   ├── extension.ts           // Main entry point
 │   ├── providers/
@@ -113,11 +128,12 @@ vscode-markdown-notes-tasks/
 │   ├── tasks/
 │   │   ├── parser.ts         // Task parsing (can adapt from Obsidian)
 │   │   ├── toggler.ts        // Toggle task state
-│   │   └── query.ts          // Task query engine
+│   │   ├── query.ts          // Task query engine
+│   │   └── previewRenderer.ts // Markdown preview extension
 │   └── test/
-├── LICENSE
+├── LICENSE                    // MIT
 ├── LICENSES/              
-│   └── obsidian-tasks.MIT.txt  // If you copy their code
+│   └── obsidian-tasks.MIT.txt  // Attribution for copied code
 └── package.json
 ```
 
@@ -127,48 +143,54 @@ vscode-markdown-notes-tasks/
 - `vscode.window.createTreeView` — Backlinks panel
 - `vscode.workspace.findFiles` — Search for notes
 - `vscode.workspace.onDidChangeTextDocument` — Update backlinks
+- `markdown.markdownItPlugins` extension point — Render task queries in preview
 
 ### Configuration Schema
 ```json
 {
-  "markdownNotesTasks.wikiLinkStyle": {
+  "markdownLoom.wikiLinkStyle": {
     "type": "string",
     "enum": ["name", "relative", "absolute"],
     "default": "name",
     "description": "How to complete [[wikilinks]]"
   },
-  "markdownNotesTasks.taskDateFormat": {
+  "markdownLoom.taskDateFormat": {
     "type": "string", 
     "default": "YYYY-MM-DD",
     "description": "Date format for task dates"
   },
-  "markdownNotesTasks.queryLimitDefault": {
+  "markdownLoom.queryLimitDefault": {
     "type": "number",
     "default": 50,
     "description": "Default max tasks returned by a query"
+  },
+  "markdownLoom.autoAddDoneDate": {
+    "type": "boolean",
+    "default": true,
+    "description": "Automatically add done date when completing tasks"
   }
 }
 ```
 
 ## Development Approach
 
-### Week 1-2: Wikilinks MVP
+### 1. Wikilinks MVP
 1. Set up extension boilerplate
 2. Implement basic `[[link]]` completion
 3. Add click-to-navigate
 4. Test with multiple workspace folders
 
-### Week 3: Backlinks
+### 2. Backlinks
 1. Create sidebar tree view
 2. Implement file watcher for updates
 3. Add "Referenced in X notes" count
 
-### Week 4: Tasks Basics
+### 3. Tasks Basics
 1. Port task regex from Obsidian (with attribution)
 2. Implement toggle command
 3. Add keyboard shortcut
 
-### Week 5: Polish & Testing
+### 4. Polish & Testing
 1. Add settings/configuration
 2. Write tests for parser
 3. Create demo video/README
@@ -187,21 +209,18 @@ vscode-markdown-notes-tasks/
 - Tooling: ESLint + Prettier configs; npm scripts `lint`, `test`, `package`; VS Code launch config for Extension Host
 
 ## Resources
+- [Obsidian Tasks Docs](https://publish.obsidian.md/tasks/) - Query syntax reference
 - [Obsidian Tasks Parser](https://github.com/obsidian-tasks-group/obsidian-tasks/tree/main/src) (MIT - can copy)
 - [vscode-markdown-notes Architecture](https://github.com/kortina/vscode-markdown-notes) (GPL - reference only)
 - [VS Code Extension Samples](https://github.com/microsoft/vscode-extension-samples)
 - [VS Code API Docs](https://code.visualstudio.com/api)
-
-## Questions to Consider
-1. Should wikilinks be case-sensitive? (Recommend: no)
-2. How to handle files with same name in different folders? (Recommend: show path in completion)
-3. Should extension work in untitled files? (Recommend: no, needs file context)
+- [Markdown Extension Guide](https://code.visualstudio.com/api/extension-guides/markdown-extension) - Preview rendering
 
 ## Delivery
 - GitHub repo with README covering setup, settings, shortcuts, and limitations
-- LICENSE plus LICENSES/obsidian-tasks.MIT.txt if regex reused
+- MIT LICENSE plus LICENSES/obsidian-tasks.MIT.txt for attribution
 - VSIX artifact attached to release
-- GIF/video demo showing linking, backlinks refresh, task toggle, and a query
+- GIF/video demo showing linking, backlinks refresh, task toggle with done date, and a query
 - Publish to VS Code Marketplace (optional for MVP)
 
 ---
