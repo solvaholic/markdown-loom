@@ -1,0 +1,31 @@
+# Source files (compiled to dist/)
+src/**
+tsconfig.json
+
+# Tests
+test/**
+.vscode-test/**
+
+# Development files
+.devcontainer/**
+.github/**
+.gitignore
+.eslintrc.json
+.prettierrc
+.prettierignore
+
+# Documentation and session files
+docs/**
+copilot-session-*.md
+vsc-extension-quickstart.md
+
+# Build files
+tmp/**
+*.vsix
+
+# Dependencies (bundled in dist/)
+node_modules/**
+
+# Git
+.git/**
+.gitattributes

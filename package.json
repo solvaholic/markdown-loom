@@ -1,0 +1,65 @@
+{
+  "name": "markdown-loom",
+  "displayName": "Markdown Loom",
+  "description": "Plain-markdown note taking with wikilinks, backlinks, and tasks.",
+  "version": "0.0.1",
+  "publisher": "markdown-loom",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onLanguage:markdown"
+  ],
+  "main": "./dist/extension.js",
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src --ext ts",
+    "test": "vscode-test",
+    "package": "vsce package"
+  },
+  "contributes": {
+    "languages": [
+      {
+        "id": "markdown",
+        "extensions": [
+          ".md"
+        ],
+        "aliases": [
+          "Markdown",
+          "markdown"
+        ]
+      }
+    ],
+    "commands": [
+      {
+        "command": "markdownLoom.openWikiLink",
+        "title": "Open Wiki Link",
+        "enablement": "editorLangId == markdown"
+      }
+    ],
+    "markdown.markdownItPlugins": true
+  },
+  "dependencies": {
+    "markdown-it": "^14.1.0"
+  },
+  "devDependencies": {
+    "@types/markdown-it": "^14.1.2",
+    "@types/mocha": "^10.0.6",
+    "@types/node": "^22.13.0",
+    "@types/vscode": "^1.85.0",
+    "@typescript-eslint/eslint-plugin": "^8.54.0",
+    "@typescript-eslint/parser": "^8.54.0",
+    "@vscode/test-cli": "^0.0.4",
+    "@vscode/test-electron": "^2.3.9",
+    "@vscode/vsce": "^2.24.0",
+    "eslint": "^8.56.0",
+    "glob": "^10.3.10",
+    "mocha": "^10.3.0",
+    "typescript": "^5.5.4"
+  }
+}
