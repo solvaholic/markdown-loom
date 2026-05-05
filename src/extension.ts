@@ -1,15 +1,22 @@
 import * as vscode from 'vscode';
 import MarkdownIt from 'markdown-it';
+import { NoteIndex } from './index/noteIndex';
 import { WikiLinkCompletionProvider } from './providers/linkCompletionProvider';
 import { WikiLinkDefinitionProvider } from './providers/linkDefinitionProvider';
 import { WikiLinkDocumentLinkProvider } from './providers/linkDocumentLinkProvider';
 import { createWikiLinkCommandHandler } from './providers/linkCommands';
 import { WikiLinkRenderer } from './providers/linkRenderer';
+import { BacklinksProvider } from './providers/backlinksProvider';
 
 export function activate(context: vscode.ExtensionContext): void {
-  const completionProvider = new WikiLinkCompletionProvider();
-  const definitionProvider = new WikiLinkDefinitionProvider();
+  const noteIndex = new NoteIndex();
+  context.subscriptions.push(noteIndex);
+
+  const completionProvider = new WikiLinkCompletionProvider(noteIndex);
+  const definitionProvider = new WikiLinkDefinitionProvider(noteIndex);
   const documentLinkProvider = new WikiLinkDocumentLinkProvider();
+  const backlinksProvider = new BacklinksProvider(noteIndex);
+  context.subscriptions.push(backlinksProvider);
 
   context.subscriptions.push(
     vscode.languages.registerCompletionItemProvider(
@@ -37,7 +44,14 @@ export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(
     vscode.commands.registerCommand(
       'markdownLoom.openWikiLink',
-      createWikiLinkCommandHandler()
+      createWikiLinkCommandHandler(noteIndex)
+    )
+  );
+
+  context.subscriptions.push(
+    vscode.window.registerTreeDataProvider(
+      'markdownLoom.backlinks',
+      backlinksProvider
     )
   );
 }

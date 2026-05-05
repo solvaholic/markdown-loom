@@ -1,8 +1,11 @@
 import * as path from 'path';
 import * as vscode from 'vscode';
+import { NoteIndex } from '../index/noteIndex';
 import { resolveWikiLinkTarget } from './linkResolution';
 
-export function createWikiLinkCommandHandler(): (target?: string) => Promise<void> {
+export function createWikiLinkCommandHandler(
+  index: NoteIndex
+): (target?: string) => Promise<void> {
   return async (targetInput?: string) => {
     const editor = vscode.window.activeTextEditor;
     const document = editor?.document;
@@ -17,7 +20,7 @@ export function createWikiLinkCommandHandler(): (target?: string) => Promise<voi
     }
 
     const target = targetFromLink.replace(/\.md$/i, '');
-    const resolved = await resolveWikiLinkTarget(target, document.uri);
+    const resolved = await resolveWikiLinkTarget(index, target, document.uri);
     if (resolved) {
       await vscode.window.showTextDocument(resolved, { preview: false });
       return;

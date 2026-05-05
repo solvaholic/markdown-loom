@@ -1,5 +1,6 @@
 import * as path from 'path';
 import * as vscode from 'vscode';
+import { NoteIndex, NoteInfo } from '../index/noteIndex';
 import { isInsideFencedCodeBlock } from './linkParsing';
 
 type WikiLinkStyle = 'name' | 'relative' | 'absolute';
@@ -10,15 +11,11 @@ interface NoteEntry {
   sortText: string;
 }
 
-interface NoteInfo {
-  uri: vscode.Uri;
-  basename: string;
-  workspaceRelativePath: string;
-}
-
 export class WikiLinkCompletionProvider
   implements vscode.CompletionItemProvider
 {
+  constructor(private readonly index: NoteIndex) {}
+
   async provideCompletionItems(
     document: vscode.TextDocument,
     position: vscode.Position
@@ -41,7 +38,8 @@ export class WikiLinkCompletionProvider
     );
 
     const style = readWikiLinkStyle(document.uri);
-    const notes = await collectNoteEntries(document.uri, style);
+    await this.index.ready();
+    const notes = collectNoteEntries(this.index, document.uri, style);
     return notes
       .filter((entry) =>
         entry.label.toLowerCase().includes(prefix.toLowerCase())
@@ -68,36 +66,24 @@ function readWikiLinkStyle(scope: vscode.Uri): WikiLinkStyle {
   return 'name';
 }
 
-async function collectNoteEntries(
+function collectNoteEntries(
+  index: NoteIndex,
   fromUri: vscode.Uri,
   style: WikiLinkStyle
-): Promise<NoteEntry[]> {
-  const files = await vscode.workspace.findFiles('**/*.md');
-  const includeWorkspaceFolder =
-    (vscode.workspace.workspaceFolders?.length ?? 0) > 1;
-  const noteInfos: NoteInfo[] = [];
+): NoteEntry[] {
+  const notes = index.getNotes();
   const basenameCounts = new Map<string, number>();
-
-  for (const file of files) {
-    const relativePath = getRelativePath(file, includeWorkspaceFolder);
-    const pathWithoutExt = relativePath.replace(/\.md$/i, '');
-    const basename = pathWithoutExt.split('/').pop() ?? pathWithoutExt;
-    const key = basename.toLowerCase();
+  for (const note of notes) {
+    const key = note.basename.toLowerCase();
     basenameCounts.set(key, (basenameCounts.get(key) ?? 0) + 1);
-    noteInfos.push({
-      uri: file,
-      basename,
-      workspaceRelativePath: pathWithoutExt
-    });
   }
 
   const entries: NoteEntry[] = [];
-  for (const note of noteInfos) {
-    const insertText = computeInsertText(note, fromUri, style, basenameCounts);
-    const label =
-      (basenameCounts.get(note.basename.toLowerCase()) ?? 0) > 1
-        ? note.workspaceRelativePath
-        : note.basename;
+  for (const note of notes) {
+    const isDuplicate =
+      (basenameCounts.get(note.basename.toLowerCase()) ?? 0) > 1;
+    const insertText = computeInsertText(note, fromUri, style, isDuplicate);
+    const label = isDuplicate ? note.workspaceRelativePath : note.basename;
     entries.push({
       label,
       insertText,
@@ -112,7 +98,7 @@ function computeInsertText(
   note: NoteInfo,
   fromUri: vscode.Uri,
   style: WikiLinkStyle,
-  basenameCounts: Map<string, number>
+  isDuplicate: boolean
 ): string {
   if (style === 'absolute') {
     return note.workspaceRelativePath;
@@ -120,8 +106,6 @@ function computeInsertText(
   if (style === 'relative') {
     return computeRelativeInsert(note.uri, fromUri);
   }
-  const isDuplicate =
-    (basenameCounts.get(note.basename.toLowerCase()) ?? 0) > 1;
   return isDuplicate ? note.workspaceRelativePath : note.basename;
 }
 
@@ -136,12 +120,4 @@ function computeRelativeInsert(
     rel = `./${rel}`;
   }
   return rel;
-}
-
-function getRelativePath(uri: vscode.Uri, includeWorkspaceFolder: boolean): string {
-  const workspaceFolder = vscode.workspace.getWorkspaceFolder(uri);
-  if (!workspaceFolder) {
-    return uri.fsPath;
-  }
-  return vscode.workspace.asRelativePath(uri, includeWorkspaceFolder);
 }

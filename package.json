@@ -42,6 +42,23 @@
         "enablement": "editorLangId == markdown"
       }
     ],
+    "views": {
+      "explorer": [
+        {
+          "id": "markdownLoom.backlinks",
+          "name": "Backlinks",
+          "when": "editorLangId == markdown",
+          "icon": "$(references)",
+          "contextualTitle": "Markdown Loom Backlinks"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "markdownLoom.backlinks",
+        "contents": "Open a markdown file to see notes that link to it."
+      }
+    ],
     "markdown.markdownItPlugins": true,
     "configuration": {
       "title": "Markdown Loom",
