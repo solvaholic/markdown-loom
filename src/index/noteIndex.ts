@@ -61,6 +61,7 @@ export class NoteIndex implements vscode.Disposable {
   private readonly notes = new Map<string, NoteInfo>();
   private readonly basenameToKeys = new Map<string, string[]>();
   private readonly pathToKey = new Map<string, string>();
+  private readonly suffixPathToKeys = new Map<string, string[]>();
   private readonly sourceLinks = new Map<string, RawLink[]>();
   private readonly backlinks = new Map<string, Map<string, BacklinkLocation[]>>();
   private readonly disposables: vscode.Disposable[] = [];
@@ -117,6 +118,7 @@ export class NoteIndex implements vscode.Disposable {
     this.notes.clear();
     this.basenameToKeys.clear();
     this.pathToKey.clear();
+    this.suffixPathToKeys.clear();
     this.sourceLinks.clear();
     this.backlinks.clear();
     for (const file of files) {
@@ -198,6 +200,16 @@ export class NoteIndex implements vscode.Disposable {
     list.push(key);
     this.basenameToKeys.set(basenameLower, list);
     this.pathToKey.set(pathWithoutExt.toLowerCase(), key);
+    // Segment-aligned suffix paths (>= 2 segments, excludes basename and the
+    // full path which are already indexed). Lets [[folder/Nested]] resolve
+    // even when the full path is rootA/folder/Nested.
+    const segments = pathWithoutExt.split('/');
+    for (let i = 1; i < segments.length - 1; i += 1) {
+      const suffix = segments.slice(i).join('/').toLowerCase();
+      const suffixList = this.suffixPathToKeys.get(suffix) ?? [];
+      suffixList.push(key);
+      this.suffixPathToKeys.set(suffix, suffixList);
+    }
   }
 
   private unregisterNote(key: string): void {
@@ -217,6 +229,20 @@ export class NoteIndex implements vscode.Disposable {
       }
     }
     this.pathToKey.delete(note.workspaceRelativePath.toLowerCase());
+    const segments = note.workspaceRelativePath.split('/');
+    for (let i = 1; i < segments.length - 1; i += 1) {
+      const suffix = segments.slice(i).join('/').toLowerCase();
+      const suffixList = this.suffixPathToKeys.get(suffix);
+      if (!suffixList) {
+        continue;
+      }
+      const filtered = suffixList.filter((k) => k !== key);
+      if (filtered.length) {
+        this.suffixPathToKeys.set(suffix, filtered);
+      } else {
+        this.suffixPathToKeys.delete(suffix);
+      }
+    }
   }
 
   private async handleFileTouched(
@@ -297,10 +323,21 @@ export class NoteIndex implements vscode.Disposable {
     if (exactKey) {
       return this.notes.get(exactKey)?.uri ?? null;
     }
+    const suffixKeys = this.suffixPathToKeys.get(targetLower);
+    if (suffixKeys && suffixKeys.length > 0) {
+      return this.pickBestCandidate(suffixKeys, fromUri);
+    }
     const candidateKeys = this.basenameToKeys.get(targetLower);
     if (!candidateKeys || candidateKeys.length === 0) {
       return null;
     }
+    return this.pickBestCandidate(candidateKeys, fromUri);
+  }
+
+  private pickBestCandidate(
+    candidateKeys: string[],
+    fromUri: vscode.Uri
+  ): vscode.Uri | null {
     if (candidateKeys.length === 1) {
       return this.notes.get(candidateKeys[0])?.uri ?? null;
     }

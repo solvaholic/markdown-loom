@@ -10,6 +10,15 @@
   "categories": [
     "Other"
   ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/solvaholic/markdown-loom.git"
+  },
+  "homepage": "https://github.com/solvaholic/markdown-loom#readme",
+  "bugs": {
+    "url": "https://github.com/solvaholic/markdown-loom/issues"
+  },
+  "license": "MIT",
   "activationEvents": [
     "onLanguage:markdown"
   ],

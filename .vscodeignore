@@ -4,11 +4,15 @@ tsconfig.json
 
 # Tests
 test/**
+test-fixtures/**
 .vscode-test/**
+.vscode-test.mjs
+dist/test/**
 
 # Development files
 .devcontainer/**
 .github/**
+.vscode/**
 .gitignore
 .eslintrc.json
 .prettierrc
