@@ -2,6 +2,6 @@
 
 A second note in rootA.
 
-[[Foo
+[[nest]]
 
 

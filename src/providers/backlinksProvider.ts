@@ -95,7 +95,14 @@ export class BacklinksProvider
         vscode.TreeItemCollapsibleState.Expanded
       );
       const count = node.matches.length;
-      item.description = `${count} ${count === 1 ? 'match' : 'matches'}`;
+      const ambiguousCount = node.matches.filter((m) => m.ambiguous).length;
+      let description = `${count} ${count === 1 ? 'match' : 'matches'}`;
+      if (ambiguousCount === count && count > 0) {
+        description += ' · ambiguous';
+      } else if (ambiguousCount > 0) {
+        description += ` · ${ambiguousCount} ambiguous`;
+      }
+      item.description = description;
       item.resourceUri = node.sourceUri;
       item.tooltip = vscode.workspace.asRelativePath(node.sourceUri, true);
       item.contextValue = 'markdownLoom.backlinkFile';
@@ -107,7 +114,17 @@ export class BacklinksProvider
       `${lineNumber}: ${truncate(match.preview, 120)}`,
       vscode.TreeItemCollapsibleState.None
     );
-    item.tooltip = match.preview;
+    if (match.ambiguous) {
+      item.description = 'ambiguous';
+      item.iconPath = new vscode.ThemeIcon('warning');
+      item.tooltip =
+        `${match.preview}\n\n` +
+        '⚠ This bare wikilink matches multiple notes. ' +
+        'Navigation picks one winner via the same-folder tiebreaker, ' +
+        'but every candidate gets this backlink so collisions surface here.';
+    } else {
+      item.tooltip = match.preview;
+    }
     item.command = {
       command: 'vscode.open',
       title: 'Open',

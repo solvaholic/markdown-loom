@@ -16,6 +16,13 @@ export interface BacklinkLocation {
   sourceUri: vscode.Uri;
   range: vscode.Range;
   preview: string;
+  /**
+   * True when the source link was a bare basename (or unqualified suffix) that
+   * matched multiple notes, and this target was *not* the tiebreaker winner.
+   * Surfaces filename collisions in the Backlinks panel without affecting
+   * navigation (go-to-definition still picks one winner).
+   */
+  ambiguous: boolean;
 }
 
 const wikilinkPattern = /\[\[([^\]]+)\]\]/g;
@@ -152,16 +159,19 @@ export class NoteIndex implements vscode.Disposable {
         continue;
       }
       for (const link of links) {
-        const targetUri = this.resolve(link.rawTarget, sourceUri);
-        if (!targetUri) {
-          continue;
+        for (const match of this.resolveAll(link.rawTarget, sourceUri)) {
+          this.addBacklink(match.uri, sourceUri, link, match.ambiguous);
         }
-        this.addBacklink(targetUri, sourceUri, link);
       }
     }
   }
 
-  private addBacklink(targetUri: vscode.Uri, sourceUri: vscode.Uri, link: RawLink): void {
+  private addBacklink(
+    targetUri: vscode.Uri,
+    sourceUri: vscode.Uri,
+    link: RawLink,
+    ambiguous: boolean
+  ): void {
     const targetKey = uriKey(targetUri);
     const sourceKey = uriKey(sourceUri);
     let perSource = this.backlinks.get(targetKey);
@@ -174,7 +184,12 @@ export class NoteIndex implements vscode.Disposable {
       locations = [];
       perSource.set(sourceKey, locations);
     }
-    locations.push({ sourceUri, range: link.range, preview: link.preview });
+    locations.push({
+      sourceUri,
+      range: link.range,
+      preview: link.preview,
+      ambiguous
+    });
   }
 
   private removeSourceFromBacklinks(sourceKey: string): void {
@@ -269,9 +284,8 @@ export class NoteIndex implements vscode.Disposable {
       this.removeSourceFromBacklinks(key);
       const sourceUri = this.notes.get(key)?.uri ?? uri;
       for (const link of links) {
-        const targetUri = this.resolve(link.rawTarget, sourceUri);
-        if (targetUri) {
-          this.addBacklink(targetUri, sourceUri, link);
+        for (const match of this.resolveAll(link.rawTarget, sourceUri)) {
+          this.addBacklink(match.uri, sourceUri, link, match.ambiguous);
         }
       }
     }
@@ -332,6 +346,55 @@ export class NoteIndex implements vscode.Disposable {
       return null;
     }
     return this.pickBestCandidate(candidateKeys, fromUri);
+  }
+
+  /**
+   * Resolve a wikilink target to *every* candidate note. The tiebreaker winner
+   * is marked `ambiguous: false`; other candidates are marked `ambiguous: true`.
+   * Used by the backlinks index so filename collisions surface as backlinks
+   * on every conflicting note, not just the navigation winner.
+   */
+  resolveAll(
+    target: string,
+    fromUri: vscode.Uri
+  ): { uri: vscode.Uri; ambiguous: boolean }[] {
+    const normalized = target.replace(/\.md$/i, '');
+    const targetLower = normalized.toLowerCase();
+    const exactKey = this.pathToKey.get(targetLower);
+    if (exactKey) {
+      const uri = this.notes.get(exactKey)?.uri;
+      return uri ? [{ uri, ambiguous: false }] : [];
+    }
+    const suffixKeys = this.suffixPathToKeys.get(targetLower);
+    if (suffixKeys && suffixKeys.length > 0) {
+      return this.expandCandidates(suffixKeys, fromUri);
+    }
+    const basenameKeys = this.basenameToKeys.get(targetLower);
+    if (basenameKeys && basenameKeys.length > 0) {
+      return this.expandCandidates(basenameKeys, fromUri);
+    }
+    return [];
+  }
+
+  private expandCandidates(
+    keys: string[],
+    fromUri: vscode.Uri
+  ): { uri: vscode.Uri; ambiguous: boolean }[] {
+    if (keys.length === 1) {
+      const uri = this.notes.get(keys[0])?.uri;
+      return uri ? [{ uri, ambiguous: false }] : [];
+    }
+    const winner = this.pickBestCandidate(keys, fromUri);
+    const winnerKey = winner ? uriKey(winner) : null;
+    const out: { uri: vscode.Uri; ambiguous: boolean }[] = [];
+    for (const key of keys) {
+      const uri = this.notes.get(key)?.uri;
+      if (!uri) {
+        continue;
+      }
+      out.push({ uri, ambiguous: key !== winnerKey });
+    }
+    return out;
   }
 
   private pickBestCandidate(

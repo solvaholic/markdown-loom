@@ -23,6 +23,12 @@ Phase 2 features (task queries, quick task entry) are planned after MVP.
 - Open the **Backlinks** view in the Explorer to see notes that link to
   the active markdown file, grouped by source file with line previews.
 - The panel refreshes when you switch files or save changes.
+- **Filename collisions surface here.** When a bare `[[Foo]]` matches
+  multiple notes (e.g., `rootA/Foo.md` and `rootB/Foo.md`), navigation
+  picks one winner via the same-folder tiebreaker, but the link
+  registers as a backlink on *every* candidate. Non-winner entries are
+  flagged "ambiguous" with a ⚠ icon so you can spot and resolve the
+  collision. Folder-qualified links like `[[rootA/Foo]]` stay 1:1.
 
 ### Tasks
 

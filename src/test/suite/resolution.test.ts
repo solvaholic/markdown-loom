@@ -104,4 +104,57 @@ suite('NoteIndex backlinks (multi-root, fenced-code-aware)', () => {
       .map((b) => b.sourceUri.fsPath);
     assert.ok(sourceFiles.some((p) => p.endsWith('rootA/Foo.md')));
   });
+
+  test('ambiguous bare links register against every candidate', () => {
+    const fooA = uriFor('rootA', 'Foo.md');
+    const fooB = uriFor('rootB', 'Foo.md');
+
+    const backA = index.getBacklinks(fooA);
+    const backB = index.getBacklinks(fooB);
+
+    // rootA/Index.md `[[Foo]]` resolves to rootA/Foo (winner) and registers
+    // an ambiguous backlink against rootB/Foo too.
+    const indexBareOnA = backA.find(
+      (b) =>
+        path.basename(b.sourceUri.fsPath) === 'Index.md' &&
+        b.preview.includes('[[Foo]]')
+    );
+    assert.ok(indexBareOnA, 'rootA/Foo should see Index.md `[[Foo]]`');
+    assert.strictEqual(indexBareOnA!.ambiguous, false, 'winner is not ambiguous');
+
+    const indexBareOnB = backB.find(
+      (b) =>
+        path.basename(b.sourceUri.fsPath) === 'Index.md' &&
+        b.preview.includes('[[Foo]]') &&
+        !b.preview.includes('rootB/Foo')
+    );
+    assert.ok(indexBareOnB, 'rootB/Foo should also see Index.md `[[Foo]]`');
+    assert.strictEqual(indexBareOnB!.ambiguous, true, 'non-winner is ambiguous');
+
+    // Explicit `[[rootB/Foo]]` from Index is unambiguous on rootB/Foo and
+    // never registers against rootA/Foo.
+    const explicitOnB = backB.find((b) => b.preview.includes('[[rootB/Foo]]'));
+    assert.ok(explicitOnB, 'rootB/Foo should see explicit [[rootB/Foo]]');
+    assert.strictEqual(explicitOnB!.ambiguous, false);
+
+    const explicitOnA = backA.find((b) => b.preview.includes('[[rootB/Foo]]'));
+    assert.strictEqual(
+      explicitOnA,
+      undefined,
+      'explicit folder-qualified link should not bleed onto rootA/Foo'
+    );
+
+    // rootB/Sibling.md `[[Foo]]` wins for rootB; rootA/Foo gets it as ambiguous.
+    const siblingOnB = backB.find(
+      (b) => path.basename(b.sourceUri.fsPath) === 'Sibling.md'
+    );
+    assert.ok(siblingOnB);
+    assert.strictEqual(siblingOnB!.ambiguous, false);
+
+    const siblingOnA = backA.find(
+      (b) => path.basename(b.sourceUri.fsPath) === 'Sibling.md'
+    );
+    assert.ok(siblingOnA, 'rootA/Foo should see Sibling.md as ambiguous');
+    assert.strictEqual(siblingOnA!.ambiguous, true);
+  });
 });
