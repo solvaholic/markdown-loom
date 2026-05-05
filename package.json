@@ -42,7 +42,34 @@
         "enablement": "editorLangId == markdown"
       }
     ],
-    "markdown.markdownItPlugins": true
+    "markdown.markdownItPlugins": true,
+    "configuration": {
+      "title": "Markdown Loom",
+      "properties": {
+        "markdownLoom.wikiLinkStyle": {
+          "type": "string",
+          "enum": ["name", "relative", "absolute"],
+          "default": "name",
+          "markdownDescription": "How `[[` completion inserts links.\n\n- `name`: insert just the note basename (qualified with `folder/` when duplicates exist).\n- `relative`: insert a path relative to the current file.\n- `absolute`: insert a path relative to the workspace folder root."
+        },
+        "markdownLoom.taskDateFormat": {
+          "type": "string",
+          "default": "YYYY-MM-DD",
+          "markdownDescription": "Date format for task dates. Currently only the ISO 8601 format `YYYY-MM-DD` is supported."
+        },
+        "markdownLoom.queryLimitDefault": {
+          "type": "number",
+          "default": 50,
+          "minimum": 1,
+          "description": "Default maximum number of tasks returned by a `tasks` query block (Phase 2)."
+        },
+        "markdownLoom.autoAddDoneDate": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically append a done date (✅ YYYY-MM-DD) when toggling a task to done."
+        }
+      }
+    }
   },
   "dependencies": {
     "markdown-it": "^14.1.0"
