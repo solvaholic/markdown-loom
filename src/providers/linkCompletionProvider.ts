@@ -26,8 +26,14 @@ export class WikiLinkCompletionProvider
 
     const lineText = document.lineAt(position.line).text;
     const lastOpen = lineText.lastIndexOf('[[', position.character);
-    const lastClose = lineText.lastIndexOf(']]', position.character);
-    if (lastOpen === -1 || lastClose > lastOpen) {
+    if (lastOpen === -1) {
+      return [];
+    }
+    // Bail only if a closing `]]` sits strictly between `[[` and the cursor;
+    // when auto-closing brackets insert `]]` at/after the cursor, we should
+    // still complete.
+    const closeBetween = lineText.indexOf(']]', lastOpen + 2);
+    if (closeBetween !== -1 && closeBetween < position.character) {
       return [];
     }
 

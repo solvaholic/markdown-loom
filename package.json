@@ -69,7 +69,6 @@
         {
           "id": "markdownLoom.backlinks",
           "name": "Backlinks",
-          "when": "editorLangId == markdown",
           "icon": "$(references)",
           "contextualTitle": "Markdown Loom Backlinks"
         }
