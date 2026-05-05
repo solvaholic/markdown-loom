@@ -40,6 +40,19 @@
         "command": "markdownLoom.openWikiLink",
         "title": "Open Wiki Link",
         "enablement": "editorLangId == markdown"
+      },
+      {
+        "command": "markdownLoom.toggleTask",
+        "title": "Markdown Loom: Toggle Task",
+        "enablement": "editorLangId == markdown"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "markdownLoom.toggleTask",
+        "key": "ctrl+alt+t",
+        "mac": "cmd+alt+t",
+        "when": "editorTextFocus && editorLangId == markdown"
       }
     ],
     "views": {

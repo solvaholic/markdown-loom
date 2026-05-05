@@ -7,6 +7,7 @@ import { WikiLinkDocumentLinkProvider } from './providers/linkDocumentLinkProvid
 import { createWikiLinkCommandHandler } from './providers/linkCommands';
 import { WikiLinkRenderer } from './providers/linkRenderer';
 import { BacklinksProvider } from './providers/backlinksProvider';
+import { createToggleTaskCommand } from './tasks/toggleCommand';
 
 export function activate(context: vscode.ExtensionContext): void {
   const noteIndex = new NoteIndex();
@@ -45,6 +46,13 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand(
       'markdownLoom.openWikiLink',
       createWikiLinkCommandHandler(noteIndex)
+    )
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      'markdownLoom.toggleTask',
+      createToggleTaskCommand()
     )
   );
 

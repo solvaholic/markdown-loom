@@ -11,12 +11,28 @@ See [docs/SPEC.md](./docs/SPEC.md) for the full specification.
 Phase 1 (MVP):
 
 - [x] Wiki-style linking (`[[Note]]`, `[[folder/Note]]`)
-- [ ] Backlinks panel
-- [ ] Basic task support (toggle + done date)
+- [x] Backlinks panel
+- [x] Basic task support (toggle + done date)
 
 Phase 2 features (task queries, quick task entry) are planned after MVP.
 
 ## Features
+
+### Backlinks panel
+
+- Open the **Backlinks** view in the Explorer to see notes that link to
+  the active markdown file, grouped by source file with line previews.
+- The panel refreshes when you switch files or save changes.
+
+### Tasks
+
+- Place the cursor on a list item and press `Ctrl`+`Alt`+`T`
+  (`Cmd`+`Alt`+`T` on macOS) to toggle the checkbox between `[ ]` and
+  `[x]`.
+- Completing a task auto-appends `✅ YYYY-MM-DD` (configurable via
+  `markdownLoom.autoAddDoneDate`).
+- All other emoji metadata (⏳, 📅, 🔁, ⏫, 🔼, 🔽) and `#tags` are
+  preserved exactly when toggling.
 
 ### Wiki-style linking
 
@@ -42,8 +58,11 @@ Defaults; override via `Preferences: Open Keyboard Shortcuts`.
 | Command | Default | When |
 | --- | --- | --- |
 | `Markdown Loom: Open Wiki Link` | `Ctrl`/`Cmd`+Click | On a `[[link]]` in a markdown file |
+| `Markdown Loom: Toggle Task` | `Ctrl`+`Alt`+`T` / `Cmd`+`Alt`+`T` | In a markdown file |
 
-Task toggle keybinding lands with the task feature.
+Toggling a task to done appends `✅ YYYY-MM-DD` (today) to the line if
+`markdownLoom.autoAddDoneDate` is true. Toggling back to open removes
+that auto-stamped done date and leaves any other emoji or tags alone.
 
 ## Limitations
 
