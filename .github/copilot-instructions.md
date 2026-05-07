@@ -44,6 +44,19 @@ These rules exist because fixture and workspace edits have silently ridden along
 - `kortina/vscode-markdown-notes` (GPL-3.0) is reference-only - do not copy code.
 - `obsidian-tasks-group/obsidian-tasks` (MIT) may be reused; preserve the MIT attribution in `LICENSES/` alongside any copied code.
 
+## Releases
+
+- See `docs/RELEASING.md` for the full checklist. Don't improvise the release
+  flow from memory; follow the doc.
+- Use `npm version <patch|minor|major>` to bump and tag in one step. Don't
+  hand-edit `package.json` for version changes.
+- `scripts/make-demo-gif.sh` is the canonical way to regenerate
+  `docs/demo.gif` from `docs/demo.mov`. The MOV source is git-ignored.
+- Before tagging a release, confirm repo visibility. If the repo is private,
+  `raw.githubusercontent.com` URLs in README.md will 404 in the Marketplace
+  listing and in unauthenticated release-notes views. v0.1.0 shipped with
+  this exact bug.
+
 ## Lessons learned
 
 - **Stale agent docs are a trap.** When repo scaffolding changes meaningfully (e.g., `package.json` lands, build commands are added), update this file in the same change. An out-of-date instructions file is worse than none.
