@@ -1,4 +1,7 @@
+import * as path from 'path';
+import * as vscode from 'vscode';
 import MarkdownIt from 'markdown-it';
+import { NoteIndex } from '../index/noteIndex';
 
 // Anchored, non-global so each call is stateless. The previous /g pattern
 // shared lastIndex across markdown-it inline rule invocations, which made
@@ -6,7 +9,11 @@ import MarkdownIt from 'markdown-it';
 const WIKILINK_AT_START = /^\[\[([^\]\n]+)\]\]/;
 
 export class WikiLinkRenderer {
+  constructor(private readonly index?: NoteIndex) {}
+
   extendMarkdownIt(md: MarkdownIt): MarkdownIt {
+    const index = this.index;
+
     md.inline.ruler.before('link', 'wikilink', (state, silent) => {
       if (state.src.charCodeAt(state.pos) !== 0x5b /* [ */) {
         return false;
@@ -31,9 +38,11 @@ export class WikiLinkRenderer {
       }
 
       if (!silent) {
+        const sourceUri = readSourceUri(state.env);
+        const href = buildPreviewHref(linkTarget, sourceUri, index);
         const tokenOpen = state.push('link_open', 'a', 1);
         tokenOpen.attrs = [
-          ['href', buildPreviewHref(linkTarget)],
+          ['href', href],
           ['class', 'markdown-loom-wikilink'],
           ['data-wikilink', linkTarget],
           ['title', `Open note: ${linkTarget}`]
@@ -51,13 +60,67 @@ export class WikiLinkRenderer {
   }
 }
 
-// Render wikilinks with a plain relative file href so VS Code's markdown
-// preview treats them as ordinary links (resolved relative to the source
-// file). `command:` URIs are sanitized out of the preview by default, which
-// is why the previous renderer produced unclickable text.
-function buildPreviewHref(target: string): string {
+// VS Code's markdown preview passes the source document's URI through
+// markdown-it's `env`. The exact key has varied between versions, so try
+// the documented spellings in order. Returns null when called outside the
+// VS Code preview (e.g. from the unit test suite or a CLI render).
+function readSourceUri(env: unknown): vscode.Uri | null {
+  if (!env || typeof env !== 'object') {
+    return null;
+  }
+  const e = env as Record<string, unknown>;
+  for (const key of ['currentDocument', 'resource', 'containingResource']) {
+    const value = e[key];
+    if (value instanceof vscode.Uri) {
+      return value;
+    }
+    if (
+      value &&
+      typeof value === 'object' &&
+      typeof (value as { fsPath?: unknown }).fsPath === 'string' &&
+      typeof (value as { scheme?: unknown }).scheme === 'string'
+    ) {
+      // VS Code may pass a serialized Uri-like object across the preview
+      // boundary; rehydrate it so path math below works.
+      const serialized = value as { scheme: string; path?: string; fsPath: string };
+      return vscode.Uri.file(serialized.fsPath);
+    }
+  }
+  return null;
+}
+
+// Render wikilinks with a relative file href so VS Code's markdown preview
+// treats them as ordinary links. When we know the source document and have
+// a NoteIndex available, resolve the target the same way the editor's
+// DocumentLinkProvider does so cross-root links (e.g. `[[rootB/Foo]]` from
+// `rootA/Index.md`) reach the correct file. Falls back to a naive
+// relative path so unit tests and same-folder links still work without
+// an index.
+function buildPreviewHref(
+  target: string,
+  sourceUri: vscode.Uri | null,
+  index: NoteIndex | undefined
+): string {
+  if (sourceUri && index) {
+    const normalized = target.replace(/\.md$/i, '');
+    const resolved = index.resolve(normalized, sourceUri);
+    if (resolved) {
+      const sourceDir = path.dirname(sourceUri.fsPath);
+      let rel = path.relative(sourceDir, resolved.fsPath);
+      if (!rel || rel.startsWith('..') === false) {
+        // Force a leading ./ for same-folder targets so the preview does
+        // not interpret a bare `Foo.md` ambiguously.
+        rel = `./${rel}`;
+      }
+      return encodePath(rel);
+    }
+  }
   const withExt = /\.md$/i.test(target) ? target : `${target}.md`;
-  return withExt
+  return encodePath(withExt);
+}
+
+function encodePath(p: string): string {
+  return p
     .split('/')
     .map((segment) => encodeURIComponent(segment))
     .join('/');

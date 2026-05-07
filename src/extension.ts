@@ -71,7 +71,7 @@ export function activate(
   // wikilink renderer into the preview's markdown-it instance.
   return {
     extendMarkdownIt(md: MarkdownIt): MarkdownIt {
-      return new WikiLinkRenderer().extendMarkdownIt(md);
+      return new WikiLinkRenderer(noteIndex).extendMarkdownIt(md);
     }
   };
 }
