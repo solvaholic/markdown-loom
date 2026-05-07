@@ -2,7 +2,7 @@
   "name": "markdown-loom",
   "displayName": "Markdown Loom",
   "description": "Plain-markdown note taking with wikilinks, backlinks, and tasks.",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "publisher": "markdown-loom",
   "engines": {
     "vscode": "^1.85.0"

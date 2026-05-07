@@ -23,3 +23,6 @@ Thumbs.db
 *.swo
 *~
 test-fixtures/rootA/perf-1000/
+
+# Demo recording source (the rendered GIF is what we ship)
+docs/demo.mov

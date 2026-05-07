@@ -6,6 +6,8 @@ just `.md` files.
 
 See [docs/SPEC.md](./docs/SPEC.md) for the full specification.
 
+![demo](docs/demo.gif)
+
 ## Status
 
 Phase 1 (MVP):
