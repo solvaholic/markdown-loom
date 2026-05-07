@@ -3,17 +3,22 @@ import * as vscode from 'vscode';
 import MarkdownIt from 'markdown-it';
 import { NoteIndex } from '../index/noteIndex';
 
+type Token = ReturnType<MarkdownIt['parse']>[number];
+type Renderer = MarkdownIt['renderer'];
+type LinkOpenRule = NonNullable<Renderer['rules']['link_open']>;
+
 // Anchored, non-global so each call is stateless. The previous /g pattern
 // shared lastIndex across markdown-it inline rule invocations, which made
 // later wikilinks in a document silently fail to render.
 const WIKILINK_AT_START = /^\[\[([^\]\n]+)\]\]/;
 
+const WIKI_TARGET_ATTR = 'data-wikilink';
+const RESOLVED_VIA_ATTR = 'data-resolved-via';
+
 export class WikiLinkRenderer {
   constructor(private readonly index?: NoteIndex) {}
 
   extendMarkdownIt(md: MarkdownIt): MarkdownIt {
-    const index = this.index;
-
     md.inline.ruler.before('link', 'wikilink', (state, silent) => {
       if (state.src.charCodeAt(state.pos) !== 0x5b /* [ */) {
         return false;
@@ -38,13 +43,19 @@ export class WikiLinkRenderer {
       }
 
       if (!silent) {
-        const sourceUri = readSourceUri(state.env);
-        const href = buildPreviewHref(linkTarget, sourceUri, index);
+        // Emit a placeholder href and stash the raw wikilink target. The
+        // real href is computed in the link_open renderer rule below,
+        // because VS Code only populates env.currentDocument during the
+        // render phase, not during inline parsing
+        // (see microsoft/vscode extensions/markdown-language-features/
+        //  src/markdownEngine.ts: tokenizeString sets currentDocument:
+        //  undefined, render() sets it to input.uri).
+        const fallbackHref = encodeFallback(linkTarget);
         const tokenOpen = state.push('link_open', 'a', 1);
         tokenOpen.attrs = [
-          ['href', href],
+          ['href', fallbackHref],
           ['class', 'markdown-loom-wikilink'],
-          ['data-wikilink', linkTarget],
+          [WIKI_TARGET_ATTR, linkTarget],
           ['title', `Open note: ${linkTarget}`]
         ];
         const textToken = state.push('text', '', 0);
@@ -56,65 +67,99 @@ export class WikiLinkRenderer {
       return true;
     });
 
+    // Resolve at render time so we can read env.currentDocument. Wrap the
+    // existing link_open renderer (VS Code installs one that adds data-href)
+    // so we don't break the preview's link handling.
+    const previous = md.renderer.rules.link_open;
+    const index = this.index;
+    const wikiRule: LinkOpenRule = (tokens, idx, options, env, self) => {
+      const token = tokens[idx];
+      const wikiTarget = token.attrGet(WIKI_TARGET_ATTR);
+      if (wikiTarget) {
+        applyWikiLinkResolution(token, wikiTarget, env, index);
+      }
+      if (previous) {
+        return previous(tokens, idx, options, env, self);
+      }
+      return self.renderToken(tokens, idx, options);
+    };
+    md.renderer.rules.link_open = wikiRule;
+
     return md;
   }
 }
 
+function applyWikiLinkResolution(
+  token: Token,
+  target: string,
+  env: unknown,
+  index: NoteIndex | undefined
+): void {
+  const sourceUri = readSourceUri(env);
+  if (!index) {
+    setOrAppendAttr(token, RESOLVED_VIA_ATTR, 'fallback-no-index');
+    return;
+  }
+  if (!sourceUri) {
+    setOrAppendAttr(token, RESOLVED_VIA_ATTR, 'fallback-no-source');
+    return;
+  }
+  const normalized = target.replace(/\.md$/i, '');
+  const resolved = index.resolve(normalized, sourceUri);
+  if (!resolved) {
+    setOrAppendAttr(token, RESOLVED_VIA_ATTR, 'fallback-not-found');
+    return;
+  }
+  const href = relativeHref(sourceUri, resolved);
+  token.attrSet('href', href);
+  setOrAppendAttr(token, RESOLVED_VIA_ATTR, 'index');
+}
+
+function relativeHref(sourceUri: vscode.Uri, targetUri: vscode.Uri): string {
+  const sourceDir = path.dirname(sourceUri.fsPath);
+  let rel = path.relative(sourceDir, targetUri.fsPath);
+  if (!rel) {
+    rel = `./${path.basename(targetUri.fsPath)}`;
+  } else if (!rel.startsWith('..')) {
+    rel = `./${rel}`;
+  }
+  // path.relative uses platform separators; href must be POSIX.
+  rel = rel.split(path.sep).join('/');
+  return encodePath(rel);
+}
+
+function setOrAppendAttr(token: Token, name: string, value: string): void {
+  const existing = token.attrIndex(name);
+  if (existing < 0) {
+    token.attrPush([name, value]);
+  } else {
+    token.attrSet(name, value);
+  }
+}
+
 // VS Code's markdown preview passes the source document's URI through
-// markdown-it's `env`. The exact key has varied between versions, so try
-// the documented spellings in order. Returns null when called outside the
-// VS Code preview (e.g. from the unit test suite or a CLI render).
+// markdown-it's `env.currentDocument` (vscode.Uri | undefined) during the
+// render phase. Returns null when called outside the VS Code preview
+// (unit tests, CLI renders) or when the engine is in parse-only mode.
 function readSourceUri(env: unknown): vscode.Uri | null {
   if (!env || typeof env !== 'object') {
     return null;
   }
-  const e = env as Record<string, unknown>;
-  for (const key of ['currentDocument', 'resource', 'containingResource']) {
-    const value = e[key];
-    if (value instanceof vscode.Uri) {
-      return value;
-    }
-    if (
-      value &&
-      typeof value === 'object' &&
-      typeof (value as { fsPath?: unknown }).fsPath === 'string' &&
-      typeof (value as { scheme?: unknown }).scheme === 'string'
-    ) {
-      // VS Code may pass a serialized Uri-like object across the preview
-      // boundary; rehydrate it so path math below works.
-      const serialized = value as { scheme: string; path?: string; fsPath: string };
-      return vscode.Uri.file(serialized.fsPath);
-    }
+  const value = (env as Record<string, unknown>).currentDocument;
+  if (value instanceof vscode.Uri) {
+    return value;
+  }
+  if (
+    value &&
+    typeof value === 'object' &&
+    typeof (value as { fsPath?: unknown }).fsPath === 'string'
+  ) {
+    return vscode.Uri.file((value as { fsPath: string }).fsPath);
   }
   return null;
 }
 
-// Render wikilinks with a relative file href so VS Code's markdown preview
-// treats them as ordinary links. When we know the source document and have
-// a NoteIndex available, resolve the target the same way the editor's
-// DocumentLinkProvider does so cross-root links (e.g. `[[rootB/Foo]]` from
-// `rootA/Index.md`) reach the correct file. Falls back to a naive
-// relative path so unit tests and same-folder links still work without
-// an index.
-function buildPreviewHref(
-  target: string,
-  sourceUri: vscode.Uri | null,
-  index: NoteIndex | undefined
-): string {
-  if (sourceUri && index) {
-    const normalized = target.replace(/\.md$/i, '');
-    const resolved = index.resolve(normalized, sourceUri);
-    if (resolved) {
-      const sourceDir = path.dirname(sourceUri.fsPath);
-      let rel = path.relative(sourceDir, resolved.fsPath);
-      if (!rel || rel.startsWith('..') === false) {
-        // Force a leading ./ for same-folder targets so the preview does
-        // not interpret a bare `Foo.md` ambiguously.
-        rel = `./${rel}`;
-      }
-      return encodePath(rel);
-    }
-  }
+function encodeFallback(target: string): string {
   const withExt = /\.md$/i.test(target) ? target : `${target}.md`;
   return encodePath(withExt);
 }
