@@ -60,4 +60,4 @@ These rules exist because fixture and workspace edits have silently ridden along
 ## Lessons learned
 
 - **Stale agent docs are a trap.** When repo scaffolding changes meaningfully (e.g., `package.json` lands, build commands are added), update this file in the same change. An out-of-date instructions file is worse than none.
-- **Multi-root is the default test environment.** Tests open `test-fixtures/markdown-loom.code-workspace`, not a single folder. Resolution and backlink logic must handle multi-root tie-breaking; single-root assumptions will pass locally and fail under test.
+- **Multi-root is the default *test* environment, not the default *user* environment.** Tests open `test-fixtures/markdown-loom.code-workspace` because tie-breaking and cross-root resolution have historically regressed under single-root assumptions. Most users (including the maintainer) actually run a single local notes folder. Both must keep working - don't reframe SPEC examples around multi-root, but don't weaken multi-root acceptance criteria either.
