@@ -14,6 +14,10 @@ export function activate(
 ): { extendMarkdownIt(md: MarkdownIt): MarkdownIt } {
   const noteIndex = new NoteIndex();
   context.subscriptions.push(noteIndex);
+  // Kick off the initial scan immediately so the markdown preview renderer
+  // (which can't await) has a populated index by the time it runs. Editor
+  // providers also call ready(); this just races them to the punch.
+  void noteIndex.ready();
 
   const completionProvider = new WikiLinkCompletionProvider(noteIndex);
   const definitionProvider = new WikiLinkDefinitionProvider(noteIndex);
