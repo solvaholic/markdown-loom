@@ -20,6 +20,39 @@ steps is how we end up with a release whose demo GIF doesn't render (see
       `publisher`, `repository.url`, `homepage`, `bugs.url`, `categories`,
       `engines.vscode`.
 
+## Smoke test the dev build
+
+Unit tests cover the renderer in isolation but cannot catch contract bugs
+between the extension and VS Code itself (see "Lessons learned" - v0.1.0
+shipped a renderer that the preview never invoked because of how it was
+exported). Always run this checklist in an Extension Development Host
+before bumping the version.
+
+1. Press `F5` to launch the Extension Development Host with
+   `test-fixtures/markdown-loom.code-workspace`.
+2. Open `rootA/Index.md`.
+3. **Editor side:**
+   - [ ] Cmd+Hover over `[[Notes]]` shows `Open note: Notes` (not
+         `Execute command`).
+   - [ ] Cmd+Click on `[[Notes]]` opens `rootA/Notes.md`.
+   - [ ] Cmd+Click on `[[rootB/Foo]]` opens `rootB/Foo.md` (cross-root).
+   - [ ] Cmd+Click on `[[does-not-exist]]` prompts to create the note.
+   - [ ] Backlinks panel updates when switching files.
+4. **Preview side** (`Cmd+Shift+V`):
+   - [ ] `[[Notes]]` renders as a clickable anchor, not literal `[[Notes]]`
+         text.
+   - [ ] Multiple wikilinks on one line all render as anchors (regression
+         guard against the stale-`lastIndex` bug).
+   - [ ] Clicking `[[Notes]]` in the preview opens `rootA/Notes.md`.
+   - [ ] Clicking `[[rootB/Foo]]` in the preview opens `rootB/Foo.md`,
+         not a "create note" prompt for `rootA/rootB/Foo.md`.
+   - [ ] Wikilinks inside fenced code blocks render as literal text.
+5. **Tasks:** open a file with `- [ ] task`, hit `Cmd+Alt+T`, confirm the
+   line gets `✅ <today>` appended.
+
+If any of these fail, fix and re-run the checklist before continuing. A
+unit test that locks in the failure mode is a good idea before the fix.
+
 ## Cut the release
 
 Pick the right SemVer bump. Phase 1 milestones are minor bumps; bug-fix-only
@@ -93,3 +126,12 @@ inline animated images and the Marketplace is even pickier.
 - **v0.1.0**: first attempt at converting `demo.mov` to GIF with ad-hoc
   `ffmpeg | gifski` flags failed. The working pipeline now lives in
   `scripts/make-demo-gif.sh` so the next demo rev is one command.
+- **v0.1.0**: shipped with `extendMarkdownIt` exported as a top-level
+  function from `src/extension.ts`. VS Code's `markdown.markdownItPlugins`
+  contribution point requires it to be **returned from `activate()`**;
+  the top-level export is silently ignored, so wikilinks rendered as
+  literal `[[text]]` in the preview the entire v0.1.0 lifetime. Unit
+  tests passed because they constructed `WikiLinkRenderer` directly. The
+  "Smoke test the dev build" preview checks above exist to catch any
+  recurrence of contract bugs that live between the extension and the
+  VS Code host.
