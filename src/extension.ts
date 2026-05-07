@@ -9,7 +9,9 @@ import { WikiLinkRenderer } from './providers/linkRenderer';
 import { BacklinksProvider } from './providers/backlinksProvider';
 import { createToggleTaskCommand } from './tasks/toggleCommand';
 
-export function activate(context: vscode.ExtensionContext): void {
+export function activate(
+  context: vscode.ExtensionContext
+): { extendMarkdownIt(md: MarkdownIt): MarkdownIt } {
   const noteIndex = new NoteIndex();
   context.subscriptions.push(noteIndex);
 
@@ -62,11 +64,16 @@ export function activate(context: vscode.ExtensionContext): void {
       backlinksProvider
     )
   );
-}
 
-export function extendMarkdownIt(md: MarkdownIt): MarkdownIt {
-  const renderer = new WikiLinkRenderer();
-  return renderer.extendMarkdownIt(md);
+  // VS Code's markdown.markdownItPlugins contribution point requires
+  // extendMarkdownIt to be returned from activate(), not exported as a
+  // top-level function. Returning it here is what actually wires the
+  // wikilink renderer into the preview's markdown-it instance.
+  return {
+    extendMarkdownIt(md: MarkdownIt): MarkdownIt {
+      return new WikiLinkRenderer().extendMarkdownIt(md);
+    }
+  };
 }
 
 export function deactivate(): void {
