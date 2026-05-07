@@ -26,11 +26,12 @@ Phase 2 features (task queries, quick task entry) are planned after MVP.
   the active markdown file, grouped by source file with line previews.
 - The panel refreshes when you switch files or save changes.
 - **Filename collisions surface here.** When a bare `[[Foo]]` matches
-  multiple notes (e.g., `rootA/Foo.md` and `rootB/Foo.md`), navigation
-  picks one winner via the same-folder tiebreaker, but the link
-  registers as a backlink on *every* candidate. Non-winner entries are
-  flagged "ambiguous" with a ⚠ icon so you can spot and resolve the
-  collision. Folder-qualified links like `[[rootA/Foo]]` stay 1:1.
+  multiple notes (e.g., two `Foo.md` files in different folders or
+  workspace roots), navigation picks one winner via the same-folder
+  tiebreaker, but the link registers as a backlink on *every*
+  candidate. Non-winner entries are flagged "ambiguous" with a ⚠ icon
+  so you can spot and resolve the collision. Folder-qualified links
+  like `[[subdir/Foo]]` stay 1:1.
 
 ### Tasks
 
@@ -44,7 +45,8 @@ Phase 2 features (task queries, quick task entry) are planned after MVP.
 
 ### Wiki-style linking
 
-- Type `[[` to autocomplete from all `.md` files across every workspace folder.
+- Type `[[` to autocomplete from all `.md` files in your workspace
+  (every folder, if you use a multi-root workspace).
 - Ctrl/Cmd+Click a `[[link]]` to jump to the target file (case-insensitive).
 - The Markdown preview pane renders `[[links]]` as clickable links.
 - Clicking a link to a file that doesn't exist offers to create it.

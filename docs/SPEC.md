@@ -1,7 +1,7 @@
 # VS Code Markdown Notes Extension Specification
 
 ## Project Overview
-Build a VS Code extension that brings essential note-taking features to markdown files, supporting both wiki-style linking and Obsidian Tasks format. The extension must work with plain markdown files stored in any location (iCloud, OneDrive, local).
+Build a VS Code extension that brings essential note-taking features to markdown files, supporting both wiki-style linking and Obsidian Tasks format. The extension must work with plain markdown files in any folder you can read - typically a single local directory, optionally synced or backed up by tools of your choice.
 
 ## Core Principles
 - **Plain text first** — No proprietary formats, no databases, just `.md` files
@@ -32,10 +32,14 @@ Build a VS Code extension that brings essential note-taking features to markdown
 <!-- The extension would render matching tasks here -->
 ```
 
-**Context Switching:**
-- Open VS Code with two workspace folders: `~/iCloud/Notes` and `~/OneDrive/WorkNotes`
-- Type `[[API` and see suggestions from BOTH folders
-- Click any link to jump between personal and work notes seamlessly
+**Fast cross-note navigation:**
+- Open VS Code on a local notes folder, e.g. `~/notes/` with PARA-style
+  subfolders (`projects/`, `areas/`, `resources/`, `archive/`).
+- Type `[[API` and see suggestions from anywhere in the folder.
+- Click any link to jump straight to the target note.
+- Multi-root workspaces are also supported when you want to keep, say,
+  personal and work notes in separate roots - the same completion and
+  navigation work across roots.
 
 ## MVP Features (Phase 1)
 
