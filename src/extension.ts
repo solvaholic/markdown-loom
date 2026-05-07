@@ -15,7 +15,7 @@ export function activate(context: vscode.ExtensionContext): void {
 
   const completionProvider = new WikiLinkCompletionProvider(noteIndex);
   const definitionProvider = new WikiLinkDefinitionProvider(noteIndex);
-  const documentLinkProvider = new WikiLinkDocumentLinkProvider();
+  const documentLinkProvider = new WikiLinkDocumentLinkProvider(noteIndex);
   const backlinksProvider = new BacklinksProvider(noteIndex);
   context.subscriptions.push(backlinksProvider);
 
