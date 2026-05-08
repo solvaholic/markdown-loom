@@ -35,7 +35,7 @@ export function createShowIndexStatusCommand(noteIndex: NoteIndex): {
       const shown = Math.min(sampleSize, count);
       channel.appendLine('');
       channel.appendLine(`Sample paths (first ${shown} of ${count}):`);
-      for (const note of notes.slice(0, sampleSize)) {
+      for (const note of notes.slice(0, shown)) {
         channel.appendLine(`  ${note.workspaceRelativePath}`);
       }
     }

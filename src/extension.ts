@@ -67,7 +67,7 @@ export function activate(
   context.subscriptions.push(new IndexStatusBar(noteIndex));
 
   const showIndexStatus = createShowIndexStatusCommand(noteIndex);
-  context.subscriptions.push({ dispose: () => showIndexStatus.dispose() });
+  context.subscriptions.push(showIndexStatus);
   context.subscriptions.push(
     vscode.commands.registerCommand('markdownLoom.showIndexStatus', showIndexStatus.handler)
   );
