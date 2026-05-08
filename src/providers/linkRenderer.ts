@@ -113,6 +113,13 @@ function applyWikiLinkResolution(
   }
   const href = relativeHref(sourceUri, resolved);
   token.attrSet('href', href);
+  // VS Code's markdown-language-features wraps our extendMarkdownIt with its
+  // own link_open rule that runs FIRST and copies the (then-fallback) `href`
+  // into `data-href` (see microsoft/vscode extensions/markdown-language-features
+  // src/markdownEngine.ts #addLinkRenderer). The preview's click handler reads
+  // `data-href` to navigate (preview-src/index.ts), so we must also overwrite
+  // it here or the click goes to the source-adjacent fallback path.
+  setOrAppendAttr(token, 'data-href', href);
   setOrAppendAttr(token, RESOLVED_VIA_ATTR, 'index');
 }
 
