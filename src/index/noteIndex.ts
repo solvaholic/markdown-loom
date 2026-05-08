@@ -73,10 +73,13 @@ export class NoteIndex implements vscode.Disposable {
   private readonly disposables: vscode.Disposable[] = [];
   private readonly _onDidChangeIndex = new vscode.EventEmitter<void>();
   readonly onDidChangeIndex = this._onDidChangeIndex.event;
+  private readonly _onWillRebuildIndex = new vscode.EventEmitter<void>();
+  readonly onWillRebuildIndex = this._onWillRebuildIndex.event;
 
   private buildPromise: Promise<void> | null = null;
   private generation = 0;
   private includeWorkspaceFolder = false;
+  private _lastRebuildAt: Date | null = null;
 
   constructor() {
     const watcher = vscode.workspace.createFileSystemWatcher('**/*.md');
@@ -100,6 +103,7 @@ export class NoteIndex implements vscode.Disposable {
       d.dispose();
     }
     this._onDidChangeIndex.dispose();
+    this._onWillRebuildIndex.dispose();
   }
 
   async ready(): Promise<void> {
@@ -111,6 +115,7 @@ export class NoteIndex implements vscode.Disposable {
 
   scheduleRebuild(): void {
     const myGeneration = ++this.generation;
+    this._onWillRebuildIndex.fire();
     this.buildPromise = this.rebuild(myGeneration);
   }
 
@@ -145,6 +150,7 @@ export class NoteIndex implements vscode.Disposable {
       return;
     }
     this.rebuildBacklinks();
+    this._lastRebuildAt = new Date();
     this._onDidChangeIndex.fire();
   }
 
@@ -384,6 +390,10 @@ export class NoteIndex implements vscode.Disposable {
 
   getNotes(): NoteInfo[] {
     return Array.from(this.notes.values());
+  }
+
+  get lastRebuildAt(): Date | null {
+    return this._lastRebuildAt;
   }
 
   getBacklinks(targetUri: vscode.Uri): BacklinkLocation[] {

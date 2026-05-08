@@ -54,6 +54,10 @@
         "command": "markdownLoom.toggleTask",
         "title": "Markdown Loom: Toggle Task",
         "enablement": "editorLangId == markdown"
+      },
+      {
+        "command": "markdownLoom.showIndexStatus",
+        "title": "Markdown Loom: Show Index Status"
       }
     ],
     "keybindings": [
@@ -105,6 +109,12 @@
           "type": "boolean",
           "default": true,
           "description": "Automatically append a done date (✅ YYYY-MM-DD) when toggling a task to done."
+        },
+        "markdownLoom.indexStatusSampleSize": {
+          "type": "number",
+          "default": 10,
+          "minimum": 1,
+          "description": "Number of indexed note paths shown as a sample in the 'Show Index Status' command output."
         }
       }
     }
