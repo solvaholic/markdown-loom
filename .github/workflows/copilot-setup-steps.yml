@@ -47,7 +47,7 @@ jobs:
           if ! pgrep -f "Xvfb :99" >/dev/null; then
             nohup Xvfb :99 -screen 0 1920x1080x24 >/tmp/xvfb.log 2>&1 &
           fi
-          for _ in $(seq 1 15); do
+          for attempt in $(seq 1 15); do
             if [ -S /tmp/.X11-unix/X99 ]; then
               break
             fi
