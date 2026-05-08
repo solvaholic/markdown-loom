@@ -12,7 +12,7 @@ See [docs/SPEC.md](./docs/SPEC.md) for the full specification.
 
 Phase 1 (MVP):
 
-- [x] Wiki-style linking (`[[Note]]`, `[[folder/Note]]`)
+- [x] Wiki-style linking (`[[Note]]`, `[[Note|Alias]]`)
 - [x] Backlinks panel
 - [x] Basic task support (toggle + done date)
 
@@ -30,8 +30,8 @@ Phase 2 features (task queries, quick task entry) are planned after MVP.
   workspace roots), navigation picks one winner via the same-folder
   tiebreaker, but the link registers as a backlink on *every*
   candidate. Non-winner entries are flagged "ambiguous" with a ⚠ icon
-  so you can spot and resolve the collision. Folder-qualified links
-  like `[[subdir/Foo]]` stay 1:1.
+  so you can spot and resolve the collision (rename, move, or live with
+  the warning - see `docs/SPEC.md` 'Wikilink target syntax').
 
 ### Tasks
 
@@ -47,16 +47,23 @@ Phase 2 features (task queries, quick task entry) are planned after MVP.
 
 - Type `[[` to autocomplete from all `.md` files in your workspace
   (every folder, if you use a multi-root workspace).
-- Ctrl/Cmd+Click a `[[link]]` to jump to the target file (case-insensitive).
+- Ctrl/Cmd+Click a `[[link]]` to jump to the target file (case-insensitive
+  basename match).
+- Use `[[Note|Alias]]` to render `Alias` as the link text while still
+  resolving to `Note.md`.
 - The Markdown preview pane renders `[[links]]` as clickable links.
 - Clicking a link to a file that doesn't exist offers to create it.
 - Wikilink patterns inside fenced code blocks are ignored.
+- Path-style targets like `[[folder/Note]]` or `[[./Note]]` are not
+  wikilinks; use a plain markdown link `[label](./folder/Note.md)` when
+  you need to point at a specific path. See `docs/SPEC.md` 'Wikilink
+  target syntax' for the full rules.
 
 ## Settings
 
 | Setting | Default | Description |
 | --- | --- | --- |
-| `markdownLoom.wikiLinkStyle` | `name` | How `[[` completion inserts links: `name`, `relative`, or `absolute`. |
+| `markdownLoom.wikiLinkStyle` | `name` | Reserved for future use. `[[` completion always inserts the note basename. |
 | `markdownLoom.taskDateFormat` | `YYYY-MM-DD` | Date format used when stamping task dates. |
 | `markdownLoom.queryLimitDefault` | `50` | Default maximum results for a `tasks` query block (Phase 2). |
 | `markdownLoom.autoAddDoneDate` | `true` | Automatically append `✅ YYYY-MM-DD` when toggling a task done. |
@@ -78,8 +85,9 @@ that auto-stamped done date and leaves any other emoji or tags alone.
 
 - Untitled (unsaved) buffers are not indexed for completion or backlinks.
 - `[[link]]` resolution and backlink search use case-insensitive basename
-  matching; if multiple notes share a basename, completion qualifies them
-  with a `folder/` prefix.
+  matching only; if multiple notes share a basename, navigation picks one
+  via the same-folder tiebreaker and the others surface as ambiguous
+  backlinks.
 - The extension activates only for the `markdown` language.
 
 ## Devcontainer

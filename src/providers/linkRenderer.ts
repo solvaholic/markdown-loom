@@ -2,6 +2,7 @@ import * as path from 'path';
 import * as vscode from 'vscode';
 import MarkdownIt from 'markdown-it';
 import { NoteIndex } from '../index/noteIndex';
+import { parseWikiLinkBody } from './linkParsing';
 
 type Token = ReturnType<MarkdownIt['parse']>[number];
 type Renderer = MarkdownIt['renderer'];
@@ -32,8 +33,8 @@ export class WikiLinkRenderer {
         return false;
       }
 
-      const linkTarget = match[1].trim();
-      if (!linkTarget) {
+      const parsed = parseWikiLinkBody(match[1]);
+      if (!parsed) {
         return false;
       }
 
@@ -50,16 +51,16 @@ export class WikiLinkRenderer {
         // (see microsoft/vscode extensions/markdown-language-features/
         //  src/markdownEngine.ts: tokenizeString sets currentDocument:
         //  undefined, render() sets it to input.uri).
-        const fallbackHref = encodeFallback(linkTarget);
+        const fallbackHref = encodeFallback(parsed.target);
         const tokenOpen = state.push('link_open', 'a', 1);
         tokenOpen.attrs = [
           ['href', fallbackHref],
           ['class', 'markdown-loom-wikilink'],
-          [WIKI_TARGET_ATTR, linkTarget],
-          ['title', `Open note: ${linkTarget}`]
+          [WIKI_TARGET_ATTR, parsed.target],
+          ['title', `Open note: ${parsed.target}`]
         ];
         const textToken = state.push('text', '', 0);
-        textToken.content = linkTarget;
+        textToken.content = parsed.display;
         state.push('link_close', 'a', -1);
       }
 

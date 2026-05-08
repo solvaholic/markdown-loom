@@ -47,9 +47,19 @@ suite('WikiLink Preview Renderer', () => {
     assert.doesNotMatch(html, /\.md\.md/);
   });
 
-  test('encodes path segments but keeps the slash separators', () => {
+  test('does not render path-prefixed targets as wikilinks', () => {
+    // Per docs/SPEC.md "Wikilink target syntax", `/` in a target makes the
+    // pattern not a wikilink at all - the raw text passes through.
     const html = render('[[folder/My Note]]');
-    assert.match(html, /href="folder\/My%20Note\.md"/);
+    assert.doesNotMatch(html, /<a [^>]*markdown-loom-wikilink/);
+    assert.match(html, /\[\[folder\/My Note\]\]/);
+  });
+
+  test('renders alias text but encodes target in href', () => {
+    const html = render('[[Note Name|Stacey]]');
+    assert.match(html, /href="Note%20Name\.md"/);
+    assert.match(html, />Stacey<\/a>/);
+    assert.match(html, /title="Open note: Note Name"/);
   });
 
   test('does not render wikilinks inside fenced code blocks', () => {
@@ -92,12 +102,13 @@ suite('WikiLink Preview Renderer (NoteIndex-aware)', () => {
     return md.render(body, { currentDocument: source });
   }
 
-  test('cross-root link resolves via NoteIndex (rootA -> rootB)', () => {
-    // rootA/Index.md links to [[rootB/Foo]] and the preview should land on
-    // ../rootB/Foo.md, not the broken rootA/rootB/Foo.md the browser would
-    // produce from a naive relative href.
-    const html = renderWith(uriFor('rootA', 'Index.md'), '[[rootB/Foo]]');
-    assert.match(html, /href="\.\.\/rootB\/Foo\.md"/);
+  test('cross-root link resolves via NoteIndex by basename (rootA -> rootB)', () => {
+    // Path-prefixed `[[rootB/Foo]]` is no longer legal; the bare basename
+    // `[[Foo]]` from rootA/Index.md prefers rootA/Foo.md (same-root tiebreak).
+    // Use a bare basename that only exists in rootB to confirm cross-root
+    // basename resolution still produces a relative href into the other root.
+    const html = renderWith(uriFor('rootA', 'Index.md'), '[[Sibling]]');
+    assert.match(html, /href="\.\.\/rootB\/Sibling\.md"/);
   });
 
   test('same-folder link gets a leading ./', () => {
@@ -105,8 +116,10 @@ suite('WikiLink Preview Renderer (NoteIndex-aware)', () => {
     assert.match(html, /href="\.\/Notes\.md"/);
   });
 
-  test('nested folder link renders the resolved relative path', () => {
-    const html = renderWith(uriFor('rootA', 'Index.md'), '[[folder/Nested]]');
+  test('nested folder link resolves by basename', () => {
+    // `[[folder/Nested]]` is illegal under the new spec; the bare `[[Nested]]`
+    // basename match still produces the resolved relative path.
+    const html = renderWith(uriFor('rootA', 'Index.md'), '[[Nested]]');
     assert.match(html, /href="\.\/folder\/Nested\.md"/);
   });
 
@@ -118,7 +131,16 @@ suite('WikiLink Preview Renderer (NoteIndex-aware)', () => {
   test('renders correctly when env has no source URI', () => {
     const md = new MarkdownIt();
     new WikiLinkRenderer(index).extendMarkdownIt(md);
-    const html = md.render('[[rootB/Foo]]');
-    assert.match(html, /href="rootB\/Foo\.md"/);
+    const html = md.render('[[Foo]]');
+    assert.match(html, /href="Foo\.md"/);
+  });
+
+  test('aliased link resolves target and renders alias text', () => {
+    const html = renderWith(
+      uriFor('rootA', 'Index.md'),
+      '[[Notes|Reading List]]'
+    );
+    assert.match(html, /href="\.\/Notes\.md"/);
+    assert.match(html, />Reading List<\/a>/);
   });
 });

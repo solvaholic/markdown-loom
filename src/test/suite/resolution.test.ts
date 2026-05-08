@@ -40,11 +40,25 @@ suite('NoteIndex resolution (multi-root)', () => {
     assert.ok(resolved!.fsPath.toLowerCase().endsWith('rootA/Notes.md'.toLowerCase()));
   });
 
-  test('resolves folder/basename paths', () => {
+  test('resolves folder/basename paths is no longer supported (returns null)', () => {
+    // Path-prefixed targets are illegal per docs/SPEC.md "Wikilink target
+    // syntax"; resolver returns null even though folder/Nested.md exists.
     const fromUri = uriFor('rootA', 'Index.md');
-    const resolved = index.resolve('folder/Nested', fromUri);
-    assert.ok(resolved);
+    assert.strictEqual(index.resolve('folder/Nested', fromUri), null);
+  });
+
+  test('resolves bare basename for a nested note', () => {
+    const fromUri = uriFor('rootA', 'Index.md');
+    const resolved = index.resolve('Nested', fromUri);
+    assert.ok(resolved, 'expected to resolve [[Nested]] via basename');
     assert.ok(resolved!.fsPath.endsWith('folder/Nested.md'));
+  });
+
+  test('strips alias before resolving: [[Notes|Alias]] -> Notes.md', () => {
+    const fromUri = uriFor('rootA', 'Index.md');
+    const resolved = index.resolve('Notes|Alias', fromUri);
+    assert.ok(resolved);
+    assert.ok(resolved!.fsPath.endsWith('rootA/Notes.md'));
   });
 
   test('duplicate basename prefers the source file’s workspace root', () => {
@@ -125,24 +139,24 @@ suite('NoteIndex backlinks (multi-root, fenced-code-aware)', () => {
     const indexBareOnB = backB.find(
       (b) =>
         path.basename(b.sourceUri.fsPath) === 'Index.md' &&
-        b.preview.includes('[[Foo]]') &&
-        !b.preview.includes('rootB/Foo')
+        b.preview.includes('[[Foo]]')
     );
     assert.ok(indexBareOnB, 'rootB/Foo should also see Index.md `[[Foo]]`');
     assert.strictEqual(indexBareOnB!.ambiguous, true, 'non-winner is ambiguous');
 
-    // Explicit `[[rootB/Foo]]` from Index is unambiguous on rootB/Foo and
-    // never registers against rootA/Foo.
-    const explicitOnB = backB.find((b) => b.preview.includes('[[rootB/Foo]]'));
-    assert.ok(explicitOnB, 'rootB/Foo should see explicit [[rootB/Foo]]');
-    assert.strictEqual(explicitOnB!.ambiguous, false);
-
-    const explicitOnA = backA.find((b) => b.preview.includes('[[rootB/Foo]]'));
-    assert.strictEqual(
-      explicitOnA,
-      undefined,
-      'explicit folder-qualified link should not bleed onto rootA/Foo'
+    // Aliased link `[[Foo|RootB Foo]]` resolves the same way as bare `[[Foo]]`
+    // (alias is display-only). It registers as a backlink on both Foo notes.
+    const aliasedOnA = backA.find((b) =>
+      b.preview.includes('[[Foo|RootB Foo]]')
     );
+    assert.ok(aliasedOnA, 'aliased link still registers via basename');
+    assert.strictEqual(aliasedOnA!.ambiguous, false);
+
+    const aliasedOnB = backB.find((b) =>
+      b.preview.includes('[[Foo|RootB Foo]]')
+    );
+    assert.ok(aliasedOnB);
+    assert.strictEqual(aliasedOnB!.ambiguous, true);
 
     // rootB/Sibling.md `[[Foo]]` wins for rootB; rootA/Foo gets it as ambiguous.
     const siblingOnB = backB.find(

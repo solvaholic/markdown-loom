@@ -23,7 +23,9 @@ function ensurePerfFixtures(): { dir: string; fromUri: vscode.Uri } {
     for (let i = 1; i <= NOTE_COUNT; i += 1) {
       const name = `note-${String(i).padStart(4, '0')}`;
       const next = `note-${String((i % NOTE_COUNT) + 1).padStart(4, '0')}`;
-      const content = `# ${name}\n\nLinks to [[${PERF_DIR_NAME}/${next}]] and [[${next}]].\n`;
+      // Wikilink targets are bare basenames per docs/SPEC.md "Wikilink target
+      // syntax". One link per note keeps the perf model simple.
+      const content = `# ${name}\n\nLinks to [[${next}]].\n`;
       fs.writeFileSync(path.join(dir, `${name}.md`), content, 'utf-8');
     }
   }
@@ -69,8 +71,7 @@ suite('NoteIndex perf smoke (1000 notes)', function () {
 
   test('getBacklinks() returns expected count quickly', () => {
     const fixtureBase = fixtureRoot();
-    // note-0001 is referenced by note-1000 (next of 1000 wraps to 1) plus
-    // some other note that links to it via [[note-0001]] (only note-1000).
+    // note-0001 is referenced once: by note-1000 (whose successor wraps to 1).
     const targetUri = vscode.Uri.file(
       path.join(fixtureBase, 'rootA', PERF_DIR_NAME, `${FROM_NOTE}.md`)
     );
@@ -78,9 +79,10 @@ suite('NoteIndex perf smoke (1000 notes)', function () {
     const back = index.getBacklinks(targetUri);
     const elapsed = Date.now() - start;
     assert.ok(elapsed < 50, `Backlink lookup took ${elapsed}ms`);
-    // Each note links to its successor by both basename and path. note-0001
-    // is the successor of note-1000 only (wrap-around), but note-1000 emits
-    // two links to note-0001 (one path, one basename).
-    assert.ok(back.length >= 2, `Expected >= 2 backlinks, got ${back.length}`);
+    assert.strictEqual(
+      back.length,
+      1,
+      `Expected exactly 1 backlink, got ${back.length}`
+    );
   });
 });

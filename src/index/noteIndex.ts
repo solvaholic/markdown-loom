@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { parseWikiLinkBody } from '../providers/linkParsing';
 
 export interface NoteInfo {
   uri: vscode.Uri;
@@ -48,14 +49,14 @@ export function extractWikiLinksFromText(text: string): RawLink[] {
     wikilinkPattern.lastIndex = 0;
     let match: RegExpExecArray | null;
     while ((match = wikilinkPattern.exec(line)) !== null) {
-      const rawTarget = match[1].trim();
-      if (!rawTarget) {
+      const parsed = parseWikiLinkBody(match[1]);
+      if (!parsed) {
         continue;
       }
       const startCol = match.index;
       const endCol = match.index + match[0].length;
       links.push({
-        rawTarget,
+        rawTarget: parsed.target,
         range: new vscode.Range(i, startCol, i, endCol),
         preview: line.trim()
       });
@@ -67,8 +68,6 @@ export function extractWikiLinksFromText(text: string): RawLink[] {
 export class NoteIndex implements vscode.Disposable {
   private readonly notes = new Map<string, NoteInfo>();
   private readonly basenameToKeys = new Map<string, string[]>();
-  private readonly pathToKey = new Map<string, string>();
-  private readonly suffixPathToKeys = new Map<string, string[]>();
   private readonly sourceLinks = new Map<string, RawLink[]>();
   private readonly backlinks = new Map<string, Map<string, BacklinkLocation[]>>();
   private readonly disposables: vscode.Disposable[] = [];
@@ -124,8 +123,6 @@ export class NoteIndex implements vscode.Disposable {
     }
     this.notes.clear();
     this.basenameToKeys.clear();
-    this.pathToKey.clear();
-    this.suffixPathToKeys.clear();
     this.sourceLinks.clear();
     this.backlinks.clear();
     for (const file of files) {
@@ -214,17 +211,6 @@ export class NoteIndex implements vscode.Disposable {
     const list = this.basenameToKeys.get(basenameLower) ?? [];
     list.push(key);
     this.basenameToKeys.set(basenameLower, list);
-    this.pathToKey.set(pathWithoutExt.toLowerCase(), key);
-    // Segment-aligned suffix paths (>= 2 segments, excludes basename and the
-    // full path which are already indexed). Lets [[folder/Nested]] resolve
-    // even when the full path is rootA/folder/Nested.
-    const segments = pathWithoutExt.split('/');
-    for (let i = 1; i < segments.length - 1; i += 1) {
-      const suffix = segments.slice(i).join('/').toLowerCase();
-      const suffixList = this.suffixPathToKeys.get(suffix) ?? [];
-      suffixList.push(key);
-      this.suffixPathToKeys.set(suffix, suffixList);
-    }
   }
 
   private unregisterNote(key: string): void {
@@ -241,21 +227,6 @@ export class NoteIndex implements vscode.Disposable {
         this.basenameToKeys.set(basenameLower, filtered);
       } else {
         this.basenameToKeys.delete(basenameLower);
-      }
-    }
-    this.pathToKey.delete(note.workspaceRelativePath.toLowerCase());
-    const segments = note.workspaceRelativePath.split('/');
-    for (let i = 1; i < segments.length - 1; i += 1) {
-      const suffix = segments.slice(i).join('/').toLowerCase();
-      const suffixList = this.suffixPathToKeys.get(suffix);
-      if (!suffixList) {
-        continue;
-      }
-      const filtered = suffixList.filter((k) => k !== key);
-      if (filtered.length) {
-        this.suffixPathToKeys.set(suffix, filtered);
-      } else {
-        this.suffixPathToKeys.delete(suffix);
       }
     }
   }
@@ -331,15 +302,9 @@ export class NoteIndex implements vscode.Disposable {
   }
 
   resolve(target: string, fromUri: vscode.Uri): vscode.Uri | null {
-    const normalized = target.replace(/\.md$/i, '');
-    const targetLower = normalized.toLowerCase();
-    const exactKey = this.pathToKey.get(targetLower);
-    if (exactKey) {
-      return this.notes.get(exactKey)?.uri ?? null;
-    }
-    const suffixKeys = this.suffixPathToKeys.get(targetLower);
-    if (suffixKeys && suffixKeys.length > 0) {
-      return this.pickBestCandidate(suffixKeys, fromUri);
+    const targetLower = normalizeTarget(target);
+    if (!targetLower) {
+      return null;
     }
     const candidateKeys = this.basenameToKeys.get(targetLower);
     if (!candidateKeys || candidateKeys.length === 0) {
@@ -358,16 +323,9 @@ export class NoteIndex implements vscode.Disposable {
     target: string,
     fromUri: vscode.Uri
   ): { uri: vscode.Uri; ambiguous: boolean }[] {
-    const normalized = target.replace(/\.md$/i, '');
-    const targetLower = normalized.toLowerCase();
-    const exactKey = this.pathToKey.get(targetLower);
-    if (exactKey) {
-      const uri = this.notes.get(exactKey)?.uri;
-      return uri ? [{ uri, ambiguous: false }] : [];
-    }
-    const suffixKeys = this.suffixPathToKeys.get(targetLower);
-    if (suffixKeys && suffixKeys.length > 0) {
-      return this.expandCandidates(suffixKeys, fromUri);
+    const targetLower = normalizeTarget(target);
+    if (!targetLower) {
+      return [];
     }
     const basenameKeys = this.basenameToKeys.get(targetLower);
     if (basenameKeys && basenameKeys.length > 0) {
@@ -455,6 +413,20 @@ export class NoteIndex implements vscode.Disposable {
 
 function isMarkdown(uri: vscode.Uri): boolean {
   return /\.md$/i.test(uri.fsPath);
+}
+
+/**
+ * Normalize a wikilink target for basename lookup: strip alias, drop a
+ * trailing `.md`, lowercase. Returns null if the target is empty or contains
+ * a path separator (illegal per docs/SPEC.md "Wikilink target syntax").
+ */
+function normalizeTarget(target: string): string | null {
+  const pipeIdx = target.indexOf('|');
+  const head = (pipeIdx === -1 ? target : target.slice(0, pipeIdx)).trim();
+  if (!head || head.includes('/') || head.includes('\\')) {
+    return null;
+  }
+  return head.replace(/\.md$/i, '').toLowerCase();
 }
 
 async function readFileText(uri: vscode.Uri): Promise<string> {
