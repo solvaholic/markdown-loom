@@ -2,7 +2,7 @@
   "name": "markdown-loom",
   "displayName": "Markdown Loom",
   "description": "Plain-markdown note taking with wikilinks, backlinks, and tasks.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "publisher": "markdown-loom",
   "engines": {
     "vscode": "^1.85.0"
@@ -90,13 +90,17 @@
       "properties": {
         "markdownLoom.wikiLinkStyle": {
           "type": "string",
-          "enum": ["name"],
+          "enum": [
+            "name"
+          ],
           "default": "name",
           "markdownDescription": "Reserved for future use. `[[` completion always inserts the note basename. Path-style insertion (`relative`, `absolute`) was removed when wikilink targets were restricted to bare names; see `docs/SPEC.md` 'Wikilink target syntax'."
         },
         "markdownLoom.taskDateFormat": {
           "type": "string",
-          "enum": ["YYYY-MM-DD"],
+          "enum": [
+            "YYYY-MM-DD"
+          ],
           "default": "YYYY-MM-DD",
           "markdownDescription": "Reserved for future use. Task dates are always written in ISO 8601 (`YYYY-MM-DD`) per `docs/SPEC.md` to keep notes interoperable with Obsidian Tasks; alternative formats are not currently honored."
         },
