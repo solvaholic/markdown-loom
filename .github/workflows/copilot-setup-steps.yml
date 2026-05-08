@@ -12,6 +12,8 @@ on:
 jobs:
   copilot-setup-steps:
     runs-on: ubuntu-latest
+    env:
+      NODE_VERSION: '22'
     permissions:
       contents: read
     steps:
@@ -21,7 +23,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: ${{ env.NODE_VERSION }}
           cache: npm
 
       - name: Install npm dependencies
@@ -44,6 +46,15 @@ jobs:
         run: |
           if ! pgrep -f "Xvfb :99" >/dev/null; then
             nohup Xvfb :99 -screen 0 1920x1080x24 >/tmp/xvfb.log 2>&1 &
-            sleep 2
+          fi
+          for _ in $(seq 1 15); do
+            if [ -S /tmp/.X11-unix/X99 ]; then
+              break
+            fi
+            sleep 1
+          done
+          if [ ! -S /tmp/.X11-unix/X99 ]; then
+            echo "Xvfb failed to start on :99"
+            exit 1
           fi
           echo "DISPLAY=:99" >> "$GITHUB_ENV"
