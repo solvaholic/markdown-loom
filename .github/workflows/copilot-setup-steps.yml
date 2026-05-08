@@ -48,7 +48,7 @@ jobs:
             libsecret-1-0 \
             libxkbfile1 \
             libgbm1 \
-            libasound2 \
+            libasound2t64 \
             libgtk-3-0 \
             libnss3 \
             xvfb
