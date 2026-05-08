@@ -96,8 +96,9 @@
         },
         "markdownLoom.taskDateFormat": {
           "type": "string",
+          "enum": ["YYYY-MM-DD"],
           "default": "YYYY-MM-DD",
-          "markdownDescription": "Date format for task dates. Currently only the ISO 8601 format `YYYY-MM-DD` is supported."
+          "markdownDescription": "Reserved for future use. Task dates are always written in ISO 8601 (`YYYY-MM-DD`) per `docs/SPEC.md` to keep notes interoperable with Obsidian Tasks; alternative formats are not currently honored."
         },
         "markdownLoom.queryLimitDefault": {
           "type": "number",
