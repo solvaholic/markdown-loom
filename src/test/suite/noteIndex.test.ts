@@ -2,13 +2,21 @@ import * as assert from 'assert';
 import { extractWikiLinksFromText } from '../../index/noteIndex';
 
 suite('NoteIndex extraction', () => {
-  test('finds links across lines', () => {
-    const links = extractWikiLinksFromText('hello [[A]]\nworld [[B/C]]\n');
+  test('finds links across lines (path-prefixed targets are skipped)', () => {
+    // `[[B/C]]` is no longer a legal wikilink target (path separator); only
+    // `[[A]]` is extracted. See docs/SPEC.md "Wikilink target syntax".
+    const links = extractWikiLinksFromText('hello [[A]]\nworld [[B/C]]\n[[D]]\n');
     assert.strictEqual(links.length, 2);
     assert.strictEqual(links[0].rawTarget, 'A');
-    assert.strictEqual(links[1].rawTarget, 'B/C');
+    assert.strictEqual(links[1].rawTarget, 'D');
     assert.strictEqual(links[0].range.start.line, 0);
-    assert.strictEqual(links[1].range.start.line, 1);
+    assert.strictEqual(links[1].range.start.line, 2);
+  });
+
+  test('strips alias from rawTarget for backlink indexing', () => {
+    const links = extractWikiLinksFromText('see [[Note|Alias]] please');
+    assert.strictEqual(links.length, 1);
+    assert.strictEqual(links[0].rawTarget, 'Note');
   });
 
   test('skips links inside fenced code blocks', () => {

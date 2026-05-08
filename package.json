@@ -86,9 +86,9 @@
       "properties": {
         "markdownLoom.wikiLinkStyle": {
           "type": "string",
-          "enum": ["name", "relative", "absolute"],
+          "enum": ["name"],
           "default": "name",
-          "markdownDescription": "How `[[` completion inserts links.\n\n- `name`: insert just the note basename (qualified with `folder/` when duplicates exist).\n- `relative`: insert a path relative to the current file.\n- `absolute`: insert a path relative to the workspace folder root."
+          "markdownDescription": "Reserved for future use. `[[` completion always inserts the note basename. Path-style insertion (`relative`, `absolute`) was removed when wikilink targets were restricted to bare names; see `docs/SPEC.md` 'Wikilink target syntax'."
         },
         "markdownLoom.taskDateFormat": {
           "type": "string",

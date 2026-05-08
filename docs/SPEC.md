@@ -44,12 +44,42 @@ Build a VS Code extension that brings essential note-taking features to markdown
 ## MVP Features (Phase 1)
 
 ### 1. Wiki-Style Linking
-- **Pattern**: `[[Note Name]]` or `[[folder/Note Name]]`
-- **Autocomplete**: When user types `[[`, show all `.md` files across workspace
+- **Pattern**: `[[Note Name]]` or `[[Note Name|Alias]]` (see "Wikilink target syntax" below)
+- **Autocomplete**: When user types `[[`, show all `.md` files across workspace by basename
 - **Navigation**: Ctrl/Cmd+Click opens the linked file in source mode
 - **Preview Rendering**: In markdown preview, `[[links]]` render as clickable links
 - **File Creation**: Clicking a link to non-existent file prompts to create it
-- **Acceptance**: Case-insensitive lookup; if duplicate filenames exist, completion shows `folder/filename`; works across multi-root workspaces; ignores wikilink patterns inside fenced code blocks
+- **Acceptance**: Case-insensitive basename lookup; works across multi-root workspaces; ignores wikilink patterns inside fenced code blocks; aliases render as the display text without affecting resolution
+
+#### Wikilink target syntax
+
+A wikilink target is **only** a note name (matched against `.md` basenames),
+optionally with an alias for display.
+
+Legal forms:
+
+- `[[Note Name]]` — link to `Note Name.md` (display text: `Note Name`).
+- `[[Note Name|Stacey]]` — link to `Note Name.md`, rendered as `Stacey`.
+
+Not legal (treated as plain text, not as wikilinks):
+
+- Path-prefixed: `[[folder/Note]]`, `[[rootB/Foo]]`.
+- Relative paths: `[[./Note]]`, `[[../Note]]`. Use plain markdown links
+  (`[label](./path/to/Note.md)`) when you need to point at a specific path.
+
+Resolution rules:
+
+- A target resolves by case-insensitive basename match against indexed notes.
+- If multiple notes share a basename, the resolver prefers the candidate in
+  the source file's workspace folder (same-root tiebreaker), then falls back
+  to the first match.
+- Backlinks surface filename collisions: a bare `[[Foo]]` registers as a
+  backlink on every `Foo.md` candidate, with non-winners flagged ambiguous.
+- Users handle name collisions however they prefer (rename, move, or live
+  with the ambiguity warning); the spec does not dictate a scheme.
+
+Future namespacing or path-qualified targets may be revisited as a separate
+proposal.
 
 **Implementation Reference**: Study `kortina/vscode-markdown-notes` (GPL-3.0)
 - Don't copy code directly unless you want GPL license
@@ -154,9 +184,9 @@ markdown-loom/
 {
   "markdownLoom.wikiLinkStyle": {
     "type": "string",
-    "enum": ["name", "relative", "absolute"],
+    "enum": ["name"],
     "default": "name",
-    "description": "How to complete [[wikilinks]]"
+    "description": "Reserved for future use. Currently `[[` completion always inserts the note basename; alternative styles were removed when the spec restricted targets to bare names."
   },
   "markdownLoom.taskDateFormat": {
     "type": "string", 

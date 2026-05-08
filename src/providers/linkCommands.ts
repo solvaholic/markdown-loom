@@ -2,6 +2,7 @@ import * as path from 'path';
 import * as vscode from 'vscode';
 import { NoteIndex } from '../index/noteIndex';
 import { resolveWikiLinkTarget } from './linkResolution';
+import { parseWikiLinkBody } from './linkParsing';
 
 export function createWikiLinkCommandHandler(
   index: NoteIndex
@@ -19,7 +20,12 @@ export function createWikiLinkCommandHandler(
       return;
     }
 
-    const target = targetFromLink.replace(/\.md$/i, '');
+    // Strip alias and any trailing `.md` so the resolver sees a bare basename.
+    const parsed = parseWikiLinkBody(targetFromLink);
+    if (!parsed) {
+      return;
+    }
+    const target = parsed.target.replace(/\.md$/i, '');
     const resolved = await resolveWikiLinkTarget(index, target, document.uri);
     if (resolved) {
       await vscode.window.showTextDocument(resolved, { preview: false });

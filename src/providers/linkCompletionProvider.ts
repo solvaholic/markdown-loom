@@ -1,15 +1,6 @@
-import * as path from 'path';
 import * as vscode from 'vscode';
-import { NoteIndex, NoteInfo } from '../index/noteIndex';
+import { NoteIndex } from '../index/noteIndex';
 import { isInsideFencedCodeBlock } from './linkParsing';
-
-type WikiLinkStyle = 'name' | 'relative' | 'absolute';
-
-interface NoteEntry {
-  label: string;
-  insertText: string;
-  sortText: string;
-}
 
 export class WikiLinkCompletionProvider
   implements vscode.CompletionItemProvider
@@ -43,87 +34,28 @@ export class WikiLinkCompletionProvider
       position
     );
 
-    const style = readWikiLinkStyle(document.uri);
     await this.index.ready();
-    const notes = collectNoteEntries(this.index, document.uri, style);
+    // Per docs/SPEC.md "Wikilink target syntax", legal targets are bare
+    // basenames only. Always insert the basename and let users disambiguate
+    // collisions by renaming or adding aliases (e.g. `[[Foo|alias]]`).
+    const notes = this.index.getNotes();
     return notes
-      .filter((entry) =>
-        entry.label.toLowerCase().includes(prefix.toLowerCase())
+      .filter((note) =>
+        note.basename.toLowerCase().includes(prefix.toLowerCase())
       )
-      .map((entry) => {
+      .map((note) => {
         const item = new vscode.CompletionItem(
-          entry.label,
+          note.basename,
           vscode.CompletionItemKind.File
         );
-        item.insertText = entry.insertText;
-        item.sortText = entry.sortText;
+        item.insertText = note.basename;
+        item.sortText = note.basename.toLowerCase();
+        // When two notes share a basename, expose the workspace-relative
+        // path as a hint so users can pick the one they meant - the inserted
+        // text is still just the basename.
+        item.detail = note.workspaceRelativePath;
         item.range = range;
         return item;
       });
   }
-}
-
-function readWikiLinkStyle(scope: vscode.Uri): WikiLinkStyle {
-  const config = vscode.workspace.getConfiguration('markdownLoom', scope);
-  const value = config.get<string>('wikiLinkStyle', 'name');
-  if (value === 'relative' || value === 'absolute' || value === 'name') {
-    return value;
-  }
-  return 'name';
-}
-
-function collectNoteEntries(
-  index: NoteIndex,
-  fromUri: vscode.Uri,
-  style: WikiLinkStyle
-): NoteEntry[] {
-  const notes = index.getNotes();
-  const basenameCounts = new Map<string, number>();
-  for (const note of notes) {
-    const key = note.basename.toLowerCase();
-    basenameCounts.set(key, (basenameCounts.get(key) ?? 0) + 1);
-  }
-
-  const entries: NoteEntry[] = [];
-  for (const note of notes) {
-    const isDuplicate =
-      (basenameCounts.get(note.basename.toLowerCase()) ?? 0) > 1;
-    const insertText = computeInsertText(note, fromUri, style, isDuplicate);
-    const label = isDuplicate ? note.workspaceRelativePath : note.basename;
-    entries.push({
-      label,
-      insertText,
-      sortText: label.toLowerCase()
-    });
-  }
-
-  return entries;
-}
-
-function computeInsertText(
-  note: NoteInfo,
-  fromUri: vscode.Uri,
-  style: WikiLinkStyle,
-  isDuplicate: boolean
-): string {
-  if (style === 'absolute') {
-    return note.workspaceRelativePath;
-  }
-  if (style === 'relative') {
-    return computeRelativeInsert(note.uri, fromUri);
-  }
-  return isDuplicate ? note.workspaceRelativePath : note.basename;
-}
-
-function computeRelativeInsert(
-  targetUri: vscode.Uri,
-  fromUri: vscode.Uri
-): string {
-  const fromDir = path.dirname(fromUri.fsPath);
-  let rel = path.relative(fromDir, targetUri.fsPath).replace(/\\/g, '/');
-  rel = rel.replace(/\.md$/i, '');
-  if (!rel.startsWith('.') && !rel.startsWith('/')) {
-    rel = `./${rel}`;
-  }
-  return rel;
 }

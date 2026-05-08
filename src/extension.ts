@@ -9,13 +9,19 @@ import { WikiLinkRenderer } from './providers/linkRenderer';
 import { BacklinksProvider } from './providers/backlinksProvider';
 import { createToggleTaskCommand } from './tasks/toggleCommand';
 
-export function activate(context: vscode.ExtensionContext): void {
+export function activate(
+  context: vscode.ExtensionContext
+): { extendMarkdownIt(md: MarkdownIt): MarkdownIt } {
   const noteIndex = new NoteIndex();
   context.subscriptions.push(noteIndex);
+  // Kick off the initial scan immediately so the markdown preview renderer
+  // (which can't await) has a populated index by the time it runs. Editor
+  // providers also call ready(); this just races them to the punch.
+  void noteIndex.ready();
 
   const completionProvider = new WikiLinkCompletionProvider(noteIndex);
   const definitionProvider = new WikiLinkDefinitionProvider(noteIndex);
-  const documentLinkProvider = new WikiLinkDocumentLinkProvider();
+  const documentLinkProvider = new WikiLinkDocumentLinkProvider(noteIndex);
   const backlinksProvider = new BacklinksProvider(noteIndex);
   context.subscriptions.push(backlinksProvider);
 
@@ -62,11 +68,16 @@ export function activate(context: vscode.ExtensionContext): void {
       backlinksProvider
     )
   );
-}
 
-export function extendMarkdownIt(md: MarkdownIt): MarkdownIt {
-  const renderer = new WikiLinkRenderer();
-  return renderer.extendMarkdownIt(md);
+  // VS Code's markdown.markdownItPlugins contribution point requires
+  // extendMarkdownIt to be returned from activate(), not exported as a
+  // top-level function. Returning it here is what actually wires the
+  // wikilink renderer into the preview's markdown-it instance.
+  return {
+    extendMarkdownIt(md: MarkdownIt): MarkdownIt {
+      return new WikiLinkRenderer(noteIndex).extendMarkdownIt(md);
+    }
+  };
 }
 
 export function deactivate(): void {

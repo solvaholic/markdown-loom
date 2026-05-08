@@ -2,12 +2,39 @@ import * as vscode from 'vscode';
 
 export interface WikiLinkMatch {
   raw: string;
+  /** Resolution target (the part before `|`, no `.md` suffix stripping). */
   target: string;
+  /** Display text - alias when present, otherwise the target. */
+  display: string;
   range: vscode.Range;
 }
 
 const fencedCodeBlockPattern = /(^|\n)(```|~~~)/g;
 const wikilinkPattern = /\[\[([^\]]+)\]\]/g;
+
+/**
+ * Split `Target|Alias` into `{ target, display }`. Anything after the first
+ * `|` is treated as alias text. Trims both halves; an empty target makes the
+ * match invalid (caller should drop it).
+ */
+export function parseWikiLinkBody(
+  body: string
+): { target: string; display: string } | null {
+  const pipeIdx = body.indexOf('|');
+  const rawTarget = (pipeIdx === -1 ? body : body.slice(0, pipeIdx)).trim();
+  if (!rawTarget) {
+    return null;
+  }
+  // Per docs/SPEC.md "Wikilink target syntax": only bare basenames are
+  // legal. Path separators or relative-path prefixes mean this is not a
+  // wikilink at all - leave it as plain text.
+  if (rawTarget.includes('/') || rawTarget.includes('\\')) {
+    return null;
+  }
+  const aliasRaw = pipeIdx === -1 ? '' : body.slice(pipeIdx + 1).trim();
+  const display = aliasRaw || rawTarget;
+  return { target: rawTarget, display };
+}
 
 export function findWikiLinkAtPosition(
   document: vscode.TextDocument,
@@ -35,15 +62,16 @@ export function matchWikiLinks(text: string, line: number): WikiLinkMatch[] {
   wikilinkPattern.lastIndex = 0;
   while ((match = wikilinkPattern.exec(text)) !== null) {
     const raw = match[0];
-    const target = match[1].trim();
-    if (!target) {
+    const parsed = parseWikiLinkBody(match[1]);
+    if (!parsed) {
       continue;
     }
     const startPos = new vscode.Position(line, match.index);
     const endPos = new vscode.Position(line, match.index + raw.length);
     matches.push({
       raw,
-      target,
+      target: parsed.target,
+      display: parsed.display,
       range: new vscode.Range(startPos, endPos)
     });
   }
