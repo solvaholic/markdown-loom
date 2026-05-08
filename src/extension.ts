@@ -8,6 +8,8 @@ import { createWikiLinkCommandHandler } from './providers/linkCommands';
 import { WikiLinkRenderer } from './providers/linkRenderer';
 import { BacklinksProvider } from './providers/backlinksProvider';
 import { createToggleTaskCommand } from './tasks/toggleCommand';
+import { IndexStatusBar } from './status/indexStatusBar';
+import { createShowIndexStatusCommand } from './commands/showIndexStatus';
 
 export function activate(
   context: vscode.ExtensionContext
@@ -60,6 +62,14 @@ export function activate(
       'markdownLoom.toggleTask',
       createToggleTaskCommand()
     )
+  );
+
+  context.subscriptions.push(new IndexStatusBar(noteIndex));
+
+  const showIndexStatus = createShowIndexStatusCommand(noteIndex);
+  context.subscriptions.push({ dispose: () => showIndexStatus.dispose() });
+  context.subscriptions.push(
+    vscode.commands.registerCommand('markdownLoom.showIndexStatus', showIndexStatus.handler)
   );
 
   context.subscriptions.push(
