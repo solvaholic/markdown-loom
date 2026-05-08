@@ -143,4 +143,33 @@ suite('WikiLink Preview Renderer (NoteIndex-aware)', () => {
     assert.match(html, /href="\.\/Notes\.md"/);
     assert.match(html, />Reading List<\/a>/);
   });
+
+  test('data-href tracks resolved href when host wraps link_open after us (regression: issue #11)', () => {
+    // Simulates microsoft/vscode markdownEngine.ts #addLinkRenderer, which
+    // installs its link_open AFTER plugin contributions, so it wraps ours and
+    // runs FIRST. It copies the current `href` into `data-href`, which the
+    // preview's click handler then navigates to. If we only update `href` in
+    // our wikiRule, `data-href` keeps the fallback (source-adjacent) value
+    // and the rendered link 404s.
+    const md = new MarkdownIt();
+    new WikiLinkRenderer(index).extendMarkdownIt(md);
+    const previous = md.renderer.rules.link_open;
+    md.renderer.rules.link_open = (tokens, idx, options, env, self) => {
+      const token = tokens[idx];
+      const href = token.attrGet('href');
+      if (typeof href === 'string') {
+        token.attrSet('data-href', href);
+      }
+      if (previous) {
+        return previous(tokens, idx, options, env, self);
+      }
+      return self.renderToken(tokens, idx, options);
+    };
+    const html = md.render('[[Nested]]', {
+      currentDocument: uriFor('rootA', 'Index.md')
+    });
+    assert.match(html, /href="\.\/folder\/Nested\.md"/);
+    assert.match(html, /data-href="\.\/folder\/Nested\.md"/);
+    assert.doesNotMatch(html, /data-href="Nested\.md"/);
+  });
 });
