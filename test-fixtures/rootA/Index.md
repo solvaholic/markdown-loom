@@ -5,4 +5,5 @@ This file links to:
 - [[Foo]]
 - [[Notes]]
 - [[Nested]]
-- [[Foo|RootB Foo]]
+- [[Sibling]]
+- [[Foo|Local Foo]]

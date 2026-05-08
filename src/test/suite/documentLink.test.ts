@@ -29,7 +29,7 @@ suite('WikiLinkDocumentLinkProvider (alias coverage for #6)', () => {
   });
 
   test('aliased link to existing note resolves to a file: URI ending in target.md', async () => {
-    // rootA/Index.md contains `[[Foo|RootB Foo]]`. The same-root tiebreaker
+    // rootA/Index.md contains `[[Foo|Local Foo]]`. The same-root tiebreaker
     // means it should resolve to rootA/Foo.md, not rootB/Foo.md.
     const doc = await vscode.workspace.openTextDocument(
       uriFor('rootA', 'Index.md')
@@ -37,9 +37,9 @@ suite('WikiLinkDocumentLinkProvider (alias coverage for #6)', () => {
     const links = provider.provideDocumentLinks(doc) ?? [];
     const aliased = links.find((l) => {
       const text = doc.getText(l.range);
-      return text === '[[Foo|RootB Foo]]';
+      return text === '[[Foo|Local Foo]]';
     });
-    assert.ok(aliased, 'expected a DocumentLink for [[Foo|RootB Foo]]');
+    assert.ok(aliased, 'expected a DocumentLink for [[Foo|Local Foo]]');
     assert.strictEqual(aliased!.tooltip, 'Open note: Foo');
 
     const resolved = await provider.resolveDocumentLink(aliased!);

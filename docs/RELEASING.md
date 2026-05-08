@@ -35,7 +35,8 @@ before bumping the version.
    - [ ] Cmd+Hover over `[[Notes]]` shows `Open note: Notes` (not
          `Execute command`).
    - [ ] Cmd+Click on `[[Notes]]` opens `rootA/Notes.md`.
-   - [ ] Cmd+Click on `[[rootB/Foo]]` opens `rootB/Foo.md` (cross-root).
+   - [ ] Cmd+Click on `[[Sibling]]` opens `rootB/Sibling.md` (cross-root via
+         a basename that is unique to rootB).
    - [ ] Cmd+Click on `[[does-not-exist]]` prompts to create the note.
    - [ ] Backlinks panel updates when switching files.
 4. **Preview side** (`Cmd+Shift+V`):
@@ -44,8 +45,10 @@ before bumping the version.
    - [ ] Multiple wikilinks on one line all render as anchors (regression
          guard against the stale-`lastIndex` bug).
    - [ ] Clicking `[[Notes]]` in the preview opens `rootA/Notes.md`.
-   - [ ] Clicking `[[rootB/Foo]]` in the preview opens `rootB/Foo.md`,
-         not a "create note" prompt for `rootA/rootB/Foo.md`.
+   - [ ] Clicking `[[Sibling]]` in the preview opens `rootB/Sibling.md`,
+         not a "create note" prompt for `rootA/Sibling.md`. (Path-prefixed
+         targets like `[[rootB/Foo]]` are illegal per `docs/SPEC.md` and
+         render as literal text - don't smoke-test with those.)
    - [ ] Wikilinks inside fenced code blocks render as literal text.
 5. **Tasks:** open a file with `- [ ] task`, hit `Cmd+Alt+T`, confirm the
    line gets `✅ <today>` appended.

@@ -144,16 +144,16 @@ suite('NoteIndex backlinks (multi-root, fenced-code-aware)', () => {
     assert.ok(indexBareOnB, 'rootB/Foo should also see Index.md `[[Foo]]`');
     assert.strictEqual(indexBareOnB!.ambiguous, true, 'non-winner is ambiguous');
 
-    // Aliased link `[[Foo|RootB Foo]]` resolves the same way as bare `[[Foo]]`
+    // Aliased link `[[Foo|Local Foo]]` resolves the same way as bare `[[Foo]]`
     // (alias is display-only). It registers as a backlink on both Foo notes.
     const aliasedOnA = backA.find((b) =>
-      b.preview.includes('[[Foo|RootB Foo]]')
+      b.preview.includes('[[Foo|Local Foo]]')
     );
     assert.ok(aliasedOnA, 'aliased link still registers via basename');
     assert.strictEqual(aliasedOnA!.ambiguous, false);
 
     const aliasedOnB = backB.find((b) =>
-      b.preview.includes('[[Foo|RootB Foo]]')
+      b.preview.includes('[[Foo|Local Foo]]')
     );
     assert.ok(aliasedOnB);
     assert.strictEqual(aliasedOnB!.ambiguous, true);
