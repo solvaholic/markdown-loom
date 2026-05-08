@@ -61,6 +61,16 @@ suite('WikiLink Parsing Tests', () => {
     assert.strictEqual(links[0].display, 'Note');
   });
 
+  test('Pipe inside alias is preserved (only first | is the separator)', () => {
+    const text = '[[Foo|Bar|Baz]]';
+    const links = matchWikiLinks(text, 0);
+
+    assert.strictEqual(links.length, 1);
+    assert.strictEqual(links[0].target, 'Foo');
+    assert.strictEqual(links[0].display, 'Bar|Baz');
+    assert.strictEqual(links[0].raw, '[[Foo|Bar|Baz]]');
+  });
+
   test('Empty alias falls back to target', () => {
     const text = '[[Note|]]';
     const links = matchWikiLinks(text, 0);
