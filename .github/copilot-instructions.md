@@ -27,6 +27,8 @@ Dev env is VS Code + Dev Containers (`mcr.microsoft.com/devcontainers/typescript
 
 After non-trivial changes, run `npm test` and report the result. Don't claim "tests pass" without running them.
 
+In Copilot cloud-agent runs, `.github/workflows/copilot-setup-steps.yml` preconfigures `DISPLAY=:99` via Xvfb, so `npm test` should work directly. On local Linux without a display server, run tests as `xvfb-run -a npm test`. Do not skip tests or invent pass/fail outcomes: this extension's test suite exercises real extension-host behavior and has caught regressions in recent commits. Note that open issue #11 tracks a live preview render-path bug that is not reliably covered by the current automated suite; treat it as a known manual-verification gap, not a reason to bypass automated tests.
+
 ## Commit hygiene
 
 These rules exist because fixture and workspace edits have silently ridden along with code commits in the past. Make changes legible.
