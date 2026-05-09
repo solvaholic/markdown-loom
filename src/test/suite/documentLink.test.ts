@@ -108,7 +108,8 @@ suite('WikiLinkDocumentLinkProvider — section refs', () => {
       `expected Notes.md, got ${resolved.target!.fsPath}`
     );
     // ## Introduction is on line 5 (1-based) of Notes.md — 0-indexed line 4,
-    // so the L-fragment is L5.
+    // so the L-fragment is L5. The fragment is always appended when the heading
+    // is found, even if its 0-indexed line number is 0.
     assert.strictEqual(
       resolved.target!.fragment,
       'L5',

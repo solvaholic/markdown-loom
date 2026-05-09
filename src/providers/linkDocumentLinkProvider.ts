@@ -55,11 +55,15 @@ export class WikiLinkDocumentLinkProvider
       // Existing note: navigate to the heading line when a section ref is
       // present (same fallback as DefinitionProvider: line 0 when the heading
       // is not found). Use a `#L{n}` fragment so VS Code opens the file at
-      // the correct line.
-      const line = link.wikiSection
-        ? (this.index.findHeadingLine(resolved, link.wikiSection) ?? 0)
-        : 0;
-      link.target = line > 0 ? resolved.with({ fragment: `L${line + 1}` }) : resolved;
+      // the correct line. Check for null — not > 0 — so a heading on line 0
+      // still gets a fragment.
+      const headingLine = link.wikiSection
+        ? this.index.findHeadingLine(resolved, link.wikiSection)
+        : null;
+      link.target =
+        headingLine !== null
+          ? resolved.with({ fragment: `L${headingLine + 1}` })
+          : resolved;
     } else {
       // Missing note: fall back to the command URI so the openWikiLink
       // handler can prompt the user to create it.
