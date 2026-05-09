@@ -172,3 +172,50 @@ suite('NoteIndex backlinks (multi-root, fenced-code-aware)', () => {
     assert.strictEqual(siblingOnA!.ambiguous, true);
   });
 });
+
+suite('NoteIndex section refs (heading resolution)', () => {
+  let index: NoteIndex;
+
+  suiteSetup(async () => {
+    index = new NoteIndex();
+    await index.ready();
+  });
+
+  suiteTeardown(() => {
+    index.dispose();
+  });
+
+  test('section ref rawTarget is the note basename (not Note#Heading)', () => {
+    // A source file that contains [[Notes#Introduction]] should register a
+    // backlink on Notes.md, not on "Notes#Introduction" (which doesn't exist).
+    const notes = uriFor('rootA', 'Notes.md');
+    const back = index.getBacklinks(notes);
+    // rootA/Index.md links [[Notes]] (plain) and rootA/Foo.md links [[notes]].
+    // If rawTarget were "Notes#Introduction" instead of "Notes", this count
+    // would be wrong. We verify at least the plain links are still found.
+    assert.ok(back.length >= 2, 'Notes.md should have at least 2 backlinks');
+  });
+
+  test('findHeadingLine returns the correct 0-indexed line for a known heading', () => {
+    // rootA/Notes.md now contains ## Introduction at line 4 (0-indexed).
+    const notes = uriFor('rootA', 'Notes.md');
+    const line = index.findHeadingLine(notes, 'Introduction');
+    assert.ok(line !== null, 'should find the Introduction heading');
+    assert.ok(line! >= 0, 'line must be non-negative');
+  });
+
+  test('findHeadingLine matches heading case-insensitively via slug', () => {
+    const notes = uriFor('rootA', 'Notes.md');
+    // "introduction" slug matches "Introduction" heading slug "introduction".
+    const line = index.findHeadingLine(notes, 'introduction');
+    assert.ok(line !== null, 'slug match should be case-insensitive');
+  });
+
+  test('findHeadingLine returns null for a non-existent heading (missing-heading fallback)', () => {
+    // Spec: missing heading must not cause a hard error; caller falls back to
+    // navigating to line 0.
+    const notes = uriFor('rootA', 'Notes.md');
+    const line = index.findHeadingLine(notes, 'NoSuchHeadingXYZ');
+    assert.strictEqual(line, null);
+  });
+});

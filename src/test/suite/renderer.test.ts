@@ -258,4 +258,17 @@ suite('WikiLink Preview Renderer (NoteIndex-aware)', () => {
     );
     assert.match(html, /href="NoSuchNote\.md#my-section"/);
   });
+
+  test('section ref to existing note with non-existent heading resolves to the file (missing-heading fallback)', () => {
+    // Per docs/SPEC.md: a section ref to a non-existent heading must still
+    // navigate to the file — no hard error. The href resolves to the note file
+    // with the slug fragment (the preview simply won't scroll anywhere since
+    // no matching anchor exists, which is acceptable).
+    const html = renderWith(
+      uriFor('rootA', 'Index.md'),
+      '[[Notes#NoSuchHeadingXYZ]]'
+    );
+    // Notes.md exists → resolved href, not fallback; fragment is still present.
+    assert.match(html, /href="\.\/Notes\.md#nosuchheadingxyz"/);
+  });
 });

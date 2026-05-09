@@ -85,8 +85,8 @@ export function extractHeadingsFromText(text: string): HeadingInfo[] {
     }
     const m = atxHeadingPattern.exec(line);
     if (m) {
-      const text = m[1].trim();
-      headings.push({ text, line: i, slug: slugifyHeading(text) });
+      const headingText = m[1].trim();
+      headings.push({ text: headingText, line: i, slug: slugifyHeading(headingText) });
     }
   }
   return headings;
