@@ -5,6 +5,7 @@ import { isInsideFencedCodeBlock, matchWikiLinks } from './linkParsing';
 
 interface WikiDocumentLink extends vscode.DocumentLink {
   wikiTarget: string;
+  wikiSection: string | null;
   sourceUri: vscode.Uri;
 }
 
@@ -33,6 +34,7 @@ export class WikiLinkDocumentLinkProvider
         const link = new vscode.DocumentLink(match.range) as WikiDocumentLink;
         link.tooltip = `Open note: ${target}`;
         link.wikiTarget = target;
+        link.wikiSection = match.section;
         link.sourceUri = document.uri;
         links.push(link);
       }
@@ -50,9 +52,18 @@ export class WikiLinkDocumentLinkProvider
       link.sourceUri
     );
     if (resolved) {
-      // Existing note: use a file URI so VS Code shows the standard
-      // "Follow link" hover and click goes straight to the file.
-      link.target = resolved;
+      // Existing note: navigate to the heading line when a section ref is
+      // present (same fallback as DefinitionProvider: line 0 when the heading
+      // is not found). Use a `#L{n}` fragment so VS Code opens the file at
+      // the correct line. Check for null — not > 0 — so a heading on line 0
+      // still gets a fragment.
+      const headingLine = link.wikiSection
+        ? this.index.findHeadingLine(resolved, link.wikiSection)
+        : null;
+      link.target =
+        headingLine !== null
+          ? resolved.with({ fragment: `L${headingLine + 1}` })
+          : resolved;
     } else {
       // Missing note: fall back to the command URI so the openWikiLink
       // handler can prompt the user to create it.

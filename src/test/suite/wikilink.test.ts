@@ -1,5 +1,6 @@
 import * as assert from 'assert';
 import { matchWikiLinks } from '../../providers/linkParsing';
+import { extractWikiLinksFromText } from '../../index/noteIndex';
 
 suite('WikiLink Parsing Tests', () => {
   test('Should parse simple wikilink', () => {
@@ -8,6 +9,7 @@ suite('WikiLink Parsing Tests', () => {
 
     assert.strictEqual(links.length, 1);
     assert.strictEqual(links[0].target, 'test-link');
+    assert.strictEqual(links[0].section, null);
     assert.strictEqual(links[0].raw, '[[test-link]]');
   });
 
@@ -59,6 +61,46 @@ suite('WikiLink Parsing Tests', () => {
 
     assert.strictEqual(links.length, 1);
     assert.strictEqual(links[0].display, 'Note');
+    assert.strictEqual(links[0].section, null);
+  });
+
+  test('Section ref: [[Note#Heading]] parses target and section', () => {
+    const text = '[[Note Name#My Heading]]';
+    const links = matchWikiLinks(text, 0);
+
+    assert.strictEqual(links.length, 1);
+    assert.strictEqual(links[0].target, 'Note Name');
+    assert.strictEqual(links[0].section, 'My Heading');
+    assert.strictEqual(links[0].display, 'Note Name#My Heading');
+    assert.strictEqual(links[0].raw, '[[Note Name#My Heading]]');
+  });
+
+  test('Section ref with alias: [[Note#Heading|Alias]] uses alias as display', () => {
+    const text = '[[Note Name#My Heading|Read more]]';
+    const links = matchWikiLinks(text, 0);
+
+    assert.strictEqual(links.length, 1);
+    assert.strictEqual(links[0].target, 'Note Name');
+    assert.strictEqual(links[0].section, 'My Heading');
+    assert.strictEqual(links[0].display, 'Read more');
+  });
+
+  test('Empty section (bare #) is treated as no section', () => {
+    const text = '[[Note#]]';
+    const links = matchWikiLinks(text, 0);
+
+    assert.strictEqual(links.length, 1);
+    assert.strictEqual(links[0].target, 'Note');
+    assert.strictEqual(links[0].section, null);
+    // Display must not include the bare trailing '#'.
+    assert.strictEqual(links[0].display, 'Note');
+  });
+
+  test('Section ref does not prevent backlink indexing on the note', () => {
+    // The rawTarget stored for backlinks must be just the note basename.
+    const links = extractWikiLinksFromText('See [[Notes#Introduction]] for more.');
+    assert.strictEqual(links.length, 1);
+    assert.strictEqual(links[0].rawTarget, 'Notes');
   });
 
   test('Pipe inside alias is preserved (only first | is the separator)', () => {

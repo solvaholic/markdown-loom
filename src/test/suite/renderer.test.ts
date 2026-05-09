@@ -82,6 +82,37 @@ suite('WikiLink Preview Renderer', () => {
     const html = render('[[]] and [[ ]]');
     assert.doesNotMatch(html, /<a /);
   });
+
+  test('section ref: fallback href includes #slug', () => {
+    const html = render('[[Notes#My Heading]]');
+    assert.match(html, /href="Notes\.md#my-heading"/);
+  });
+
+  test('section ref: display is Note#Heading when no alias', () => {
+    const html = render('[[Notes#My Heading]]');
+    assert.match(html, />Notes#My Heading<\/a>/);
+  });
+
+  test('section ref: title includes #Heading', () => {
+    const html = render('[[Notes#My Heading]]');
+    assert.match(html, /title="Open note: Notes#My Heading"/);
+  });
+
+  test('section ref with alias: alias is display text', () => {
+    const html = render('[[Notes#My Heading|Read More]]');
+    assert.match(html, />Read More<\/a>/);
+    assert.match(html, /href="Notes\.md#my-heading"/);
+  });
+
+  test('section ref: slug strips punctuation', () => {
+    const html = render('[[Notes#Hello, World!]]');
+    assert.match(html, /href="Notes\.md#hello-world"/);
+  });
+
+  test('section ref inside code block is not rendered as a link', () => {
+    const html = render('```\n[[Notes#Heading]]\n```');
+    assert.doesNotMatch(html, /href="Notes\.md#/);
+  });
 });
 
 suite('WikiLink Preview Renderer (NoteIndex-aware)', () => {
@@ -171,5 +202,73 @@ suite('WikiLink Preview Renderer (NoteIndex-aware)', () => {
     assert.match(html, /href="\.\/folder\/Nested\.md"/);
     assert.match(html, /data-href="\.\/folder\/Nested\.md"/);
     assert.doesNotMatch(html, /data-href="Nested\.md"/);
+  });
+
+  test('section ref: resolved href includes #slug fragment', () => {
+    // Notes.md exists in rootA; [[Notes#Introduction]] should resolve to
+    // ./Notes.md#introduction (slug = lowercase + spaces→hyphens).
+    const html = renderWith(
+      uriFor('rootA', 'Index.md'),
+      '[[Notes#Introduction]]'
+    );
+    assert.match(html, /href="\.\/Notes\.md#introduction"/);
+    assert.match(html, />Notes#Introduction<\/a>/);
+  });
+
+  test('section ref with alias: resolved href has fragment, alias is text', () => {
+    const html = renderWith(
+      uriFor('rootA', 'Index.md'),
+      '[[Notes#Details|See Details]]'
+    );
+    assert.match(html, /href="\.\/Notes\.md#details"/);
+    assert.match(html, />See Details<\/a>/);
+  });
+
+  test('section ref: data-href also includes fragment (regression guard)', () => {
+    // VS Code's addLinkRenderer wraps us and copies href → data-href from the
+    // fallback value; our resolver must overwrite both so preview navigation
+    // lands at the heading rather than at the top of the file.
+    const md = new MarkdownIt();
+    new WikiLinkRenderer(index).extendMarkdownIt(md);
+    const previous = md.renderer.rules.link_open;
+    md.renderer.rules.link_open = (tokens, idx, options, env, self) => {
+      const token = tokens[idx];
+      const href = token.attrGet('href');
+      if (typeof href === 'string') {
+        token.attrSet('data-href', href);
+      }
+      if (previous) {
+        return previous(tokens, idx, options, env, self);
+      }
+      return self.renderToken(tokens, idx, options);
+    };
+    const html = md.render('[[Notes#Introduction]]', {
+      currentDocument: uriFor('rootA', 'Index.md')
+    });
+    assert.match(html, /href="\.\/Notes\.md#introduction"/);
+    assert.match(html, /data-href="\.\/Notes\.md#introduction"/);
+  });
+
+  test('section ref to unknown note falls back with fragment in href', () => {
+    // Missing note → fallback href includes the slug so the pattern is
+    // consistent even before the file exists.
+    const html = renderWith(
+      uriFor('rootA', 'Index.md'),
+      '[[NoSuchNote#My Section]]'
+    );
+    assert.match(html, /href="NoSuchNote\.md#my-section"/);
+  });
+
+  test('section ref to existing note with non-existent heading resolves to the file (missing-heading fallback)', () => {
+    // Per docs/SPEC.md: a section ref to a non-existent heading must still
+    // navigate to the file — no hard error. The href resolves to the note file
+    // with the slug fragment (the preview simply won't scroll anywhere since
+    // no matching anchor exists, which is acceptable).
+    const html = renderWith(
+      uriFor('rootA', 'Index.md'),
+      '[[Notes#NoSuchHeadingXYZ]]'
+    );
+    // Notes.md exists → resolved href, not fallback; fragment is still present.
+    assert.match(html, /href="\.\/Notes\.md#nosuchheadingxyz"/);
   });
 });

@@ -7,6 +7,16 @@ export interface NoteInfo {
   workspaceRelativePath: string;
 }
 
+/** A single heading extracted from a note's text. */
+export interface HeadingInfo {
+  /** Raw heading text (ATX marker and leading/trailing whitespace stripped). */
+  text: string;
+  /** 0-indexed line number in the source file. */
+  line: number;
+  /** URL slug, computed by {@link slugifyHeading}. */
+  slug: string;
+}
+
 export interface RawLink {
   rawTarget: string;
   range: vscode.Range;
@@ -28,9 +38,58 @@ export interface BacklinkLocation {
 
 const wikilinkPattern = /\[\[([^\]]+)\]\]/g;
 const fencePattern = /^[ \t]{0,3}(```|~~~)/;
+const atxHeadingPattern = /^#{1,6}[ \t]+(.+?)[ \t]*(?:#+[ \t]*)?$/;
 
 export function uriKey(uri: vscode.Uri): string {
   return uri.scheme === 'file' ? uri.fsPath.toLowerCase() : uri.toString().toLowerCase();
+}
+
+/**
+ * Slugify a heading string to produce a URL fragment, using the same algorithm
+ * as VS Code's markdown preview (which follows GitHub's heading-slug rules for
+ * ASCII text):
+ *
+ *  1. Trim leading/trailing whitespace.
+ *  2. Lowercase.
+ *  3. Replace one or more whitespace characters with a single hyphen.
+ *  4. Remove any character that is not a word character (`\w`) or a hyphen.
+ *
+ * This is correct for ASCII headings. Unicode letter handling may differ from
+ * VS Code preview for non-Latin scripts; that can be refined in a follow-up.
+ */
+export function slugifyHeading(heading: string): string {
+  return heading
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '-')
+    .replace(/[^\w-]/g, '');
+}
+
+/**
+ * Extract all ATX-style headings (`# H1`, `## H2`, …) from `text`, skipping
+ * headings inside fenced code blocks. Returns one {@link HeadingInfo} per
+ * heading, in document order.
+ */
+export function extractHeadingsFromText(text: string): HeadingInfo[] {
+  const lines = text.split(/\r?\n/);
+  const headings: HeadingInfo[] = [];
+  let inFence = false;
+  for (let i = 0; i < lines.length; i += 1) {
+    const line = lines[i];
+    if (fencePattern.test(line)) {
+      inFence = !inFence;
+      continue;
+    }
+    if (inFence) {
+      continue;
+    }
+    const m = atxHeadingPattern.exec(line);
+    if (m) {
+      const headingText = m[1].trim();
+      headings.push({ text: headingText, line: i, slug: slugifyHeading(headingText) });
+    }
+  }
+  return headings;
 }
 
 export function extractWikiLinksFromText(text: string): RawLink[] {
@@ -69,6 +128,7 @@ export class NoteIndex implements vscode.Disposable {
   private readonly notes = new Map<string, NoteInfo>();
   private readonly basenameToKeys = new Map<string, string[]>();
   private readonly sourceLinks = new Map<string, RawLink[]>();
+  private readonly headings = new Map<string, HeadingInfo[]>();
   private readonly backlinks = new Map<string, Map<string, BacklinkLocation[]>>();
   private readonly disposables: vscode.Disposable[] = [];
   private readonly _onDidChangeIndex = new vscode.EventEmitter<void>();
@@ -129,6 +189,7 @@ export class NoteIndex implements vscode.Disposable {
     this.notes.clear();
     this.basenameToKeys.clear();
     this.sourceLinks.clear();
+    this.headings.clear();
     this.backlinks.clear();
     for (const file of files) {
       this.registerNote(file);
@@ -143,7 +204,9 @@ export class NoteIndex implements vscode.Disposable {
           return;
         }
         const links = extractWikiLinksFromText(text);
+        const fileHeadings = extractHeadingsFromText(text);
         this.sourceLinks.set(uriKey(file), links);
+        this.headings.set(uriKey(file), fileHeadings);
       })
     );
     if (myGeneration !== this.generation) {
@@ -254,7 +317,9 @@ export class NoteIndex implements vscode.Disposable {
     }
     const text = knownText ?? (await readFileText(uri));
     const links = extractWikiLinksFromText(text);
+    const fileHeadings = extractHeadingsFromText(text);
     this.sourceLinks.set(key, links);
+    this.headings.set(key, fileHeadings);
     if (isCreate || !wasIndexed) {
       this.rebuildBacklinks();
     } else {
@@ -281,6 +346,7 @@ export class NoteIndex implements vscode.Disposable {
     }
     this.unregisterNote(key);
     this.sourceLinks.delete(key);
+    this.headings.delete(key);
     this.removeSourceFromBacklinks(key);
     this.rebuildBacklinks();
     this._onDidChangeIndex.fire();
@@ -406,6 +472,39 @@ export class NoteIndex implements vscode.Disposable {
       all.push(...locations);
     }
     return all;
+  }
+
+  /** Return all indexed headings for the given note URI. */
+  getHeadings(targetUri: vscode.Uri): HeadingInfo[] {
+    return this.headings.get(uriKey(targetUri)) ?? [];
+  }
+
+  /**
+   * Find the 0-indexed line number of the first heading in `targetUri` whose
+   * slug matches `section`. Returns `null` if no match is found (the caller
+   * should fall back to line 0 — navigate to the file without hard error, per
+   * docs/SPEC.md "missing-heading fallback").
+   *
+   * Slug matching is used (via {@link slugifyHeading}) so that
+   * `[[Note#My Heading]]` resolves to `## My Heading` even if the user typed
+   * the heading with different casing or minor punctuation differences.
+   * A plain case-insensitive text match is tried as a second-pass fallback.
+   */
+  findHeadingLine(targetUri: vscode.Uri, section: string): number | null {
+    const fileHeadings = this.headings.get(uriKey(targetUri));
+    if (!fileHeadings || fileHeadings.length === 0) {
+      return null;
+    }
+    const sectionSlug = slugifyHeading(section);
+    const bySlug = fileHeadings.find((h) => h.slug === sectionSlug);
+    if (bySlug) {
+      return bySlug.line;
+    }
+    // Second-pass: plain case-insensitive text match (covers slugs that round-
+    // trip with different results due to Unicode or punctuation).
+    const sectionLower = section.trim().toLowerCase();
+    const byText = fileHeadings.find((h) => h.text.toLowerCase() === sectionLower);
+    return byText?.line ?? null;
   }
 
   isMultiRoot(): boolean {
