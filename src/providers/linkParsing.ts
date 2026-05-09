@@ -2,9 +2,11 @@ import * as vscode from 'vscode';
 
 export interface WikiLinkMatch {
   raw: string;
-  /** Resolution target (the part before `|`, no `.md` suffix stripping). */
+  /** Bare note basename (before `#` and `|`). */
   target: string;
-  /** Display text - alias when present, otherwise the target. */
+  /** Section (heading) reference — text after `#` and before `|`, or null. */
+  section: string | null;
+  /** Display text - alias when present, otherwise the full target (note#heading or note). */
   display: string;
   range: vscode.Range;
 }
@@ -13,27 +15,45 @@ const fencedCodeBlockPattern = /(^|\n)(```|~~~)/g;
 const wikilinkPattern = /\[\[([^\]]+)\]\]/g;
 
 /**
- * Split `Target|Alias` into `{ target, display }`. Anything after the first
- * `|` is treated as alias text. Trims both halves; an empty target makes the
- * match invalid (caller should drop it).
+ * Split `Target#Section|Alias` into `{ target, section, display }`.
+ *
+ * - The first `#` (if any) separates the note basename from the section ref.
+ * - The first `|` (if any) separates the display alias from the rest.
+ * - An empty note basename makes the match invalid (caller should drop it).
+ * - Path separators in the note basename are illegal per docs/SPEC.md
+ *   "Wikilink target syntax" — return null for those.
  */
 export function parseWikiLinkBody(
   body: string
-): { target: string; display: string } | null {
+): { target: string; section: string | null; display: string } | null {
   const pipeIdx = body.indexOf('|');
-  const rawTarget = (pipeIdx === -1 ? body : body.slice(0, pipeIdx)).trim();
-  if (!rawTarget) {
+  const targetPart = (pipeIdx === -1 ? body : body.slice(0, pipeIdx)).trim();
+  if (!targetPart) {
+    return null;
+  }
+
+  // Split note basename from optional section ref on the first `#`.
+  const hashIdx = targetPart.indexOf('#');
+  const noteName = (hashIdx === -1 ? targetPart : targetPart.slice(0, hashIdx)).trim();
+  const section =
+    hashIdx === -1 ? null : targetPart.slice(hashIdx + 1).trim() || null;
+
+  if (!noteName) {
     return null;
   }
   // Per docs/SPEC.md "Wikilink target syntax": only bare basenames are
   // legal. Path separators or relative-path prefixes mean this is not a
   // wikilink at all - leave it as plain text.
-  if (rawTarget.includes('/') || rawTarget.includes('\\')) {
+  if (noteName.includes('/') || noteName.includes('\\')) {
     return null;
   }
+
   const aliasRaw = pipeIdx === -1 ? '' : body.slice(pipeIdx + 1).trim();
-  const display = aliasRaw || rawTarget;
-  return { target: rawTarget, display };
+  // When no alias is given, display the full target part (note#heading or just
+  // the note name). Build it explicitly so we never emit a trailing bare `#`
+  // (e.g. for the degenerate `[[Note#]]` form where section parsed to null).
+  const display = aliasRaw || (section ? `${noteName}#${section}` : noteName);
+  return { target: noteName, section, display };
 }
 
 export function findWikiLinkAtPosition(
@@ -71,6 +91,7 @@ export function matchWikiLinks(text: string, line: number): WikiLinkMatch[] {
     matches.push({
       raw,
       target: parsed.target,
+      section: parsed.section,
       display: parsed.display,
       range: new vscode.Range(startPos, endPos)
     });

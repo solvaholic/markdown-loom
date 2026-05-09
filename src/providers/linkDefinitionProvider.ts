@@ -24,6 +24,13 @@ export class WikiLinkDefinitionProvider implements vscode.DefinitionProvider {
       return null;
     }
 
-    return new vscode.Location(target, new vscode.Position(0, 0));
+    // When a section ref is present, navigate to the heading line.
+    // Fall back to line 0 when the heading is not found (no hard error —
+    // per docs/SPEC.md "missing-heading fallback").
+    const line = match.section
+      ? (this.index.findHeadingLine(target, match.section) ?? 0)
+      : 0;
+
+    return new vscode.Location(target, new vscode.Position(line, 0));
   }
 }

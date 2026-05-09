@@ -1,7 +1,7 @@
 import * as path from 'path';
 import * as vscode from 'vscode';
 import MarkdownIt from 'markdown-it';
-import { NoteIndex } from '../index/noteIndex';
+import { NoteIndex, slugifyHeading } from '../index/noteIndex';
 import { parseWikiLinkBody } from './linkParsing';
 
 type Token = ReturnType<MarkdownIt['parse']>[number];
@@ -14,6 +14,7 @@ type LinkOpenRule = NonNullable<Renderer['rules']['link_open']>;
 const WIKILINK_AT_START = /^\[\[([^\]\n]+)\]\]/;
 
 const WIKI_TARGET_ATTR = 'data-wikilink';
+const WIKI_SECTION_ATTR = 'data-wikilink-section';
 const RESOLVED_VIA_ATTR = 'data-resolved-via';
 
 export class WikiLinkRenderer {
@@ -44,21 +45,28 @@ export class WikiLinkRenderer {
       }
 
       if (!silent) {
-        // Emit a placeholder href and stash the raw wikilink target. The
-        // real href is computed in the link_open renderer rule below,
-        // because VS Code only populates env.currentDocument during the
-        // render phase, not during inline parsing
-        // (see microsoft/vscode extensions/markdown-language-features/
+        // Emit a placeholder href and stash the raw wikilink target (and
+        // optional section ref). The real href is computed in the link_open
+        // renderer rule below, because VS Code only populates
+        // env.currentDocument during the render phase, not during inline
+        // parsing (see microsoft/vscode extensions/markdown-language-features/
         //  src/markdownEngine.ts: tokenizeString sets currentDocument:
         //  undefined, render() sets it to input.uri).
-        const fallbackHref = encodeFallback(parsed.target);
-        const tokenOpen = state.push('link_open', 'a', 1);
-        tokenOpen.attrs = [
+        const fallbackHref = encodeFallback(parsed.target, parsed.section);
+        const titleTarget = parsed.section
+          ? `${parsed.target}#${parsed.section}`
+          : parsed.target;
+        const attrs: [string, string][] = [
           ['href', fallbackHref],
           ['class', 'markdown-loom-wikilink'],
           [WIKI_TARGET_ATTR, parsed.target],
-          ['title', `Open note: ${parsed.target}`]
+          ['title', `Open note: ${titleTarget}`]
         ];
+        if (parsed.section) {
+          attrs.push([WIKI_SECTION_ATTR, parsed.section]);
+        }
+        const tokenOpen = state.push('link_open', 'a', 1);
+        tokenOpen.attrs = attrs;
         const textToken = state.push('text', '', 0);
         textToken.content = parsed.display;
         state.push('link_close', 'a', -1);
@@ -97,6 +105,8 @@ function applyWikiLinkResolution(
   index: NoteIndex | undefined
 ): void {
   const sourceUri = readSourceUri(env);
+  // Read the optional section ref stored by the inline rule.
+  const section = token.attrGet(WIKI_SECTION_ATTR) ?? null;
   if (!index) {
     setOrAppendAttr(token, RESOLVED_VIA_ATTR, 'fallback-no-index');
     return;
@@ -111,7 +121,11 @@ function applyWikiLinkResolution(
     setOrAppendAttr(token, RESOLVED_VIA_ATTR, 'fallback-not-found');
     return;
   }
-  const href = relativeHref(sourceUri, resolved);
+  const base = relativeHref(sourceUri, resolved);
+  // Append the section slug fragment so VS Code's preview scrolls to the
+  // heading. The slug algorithm must agree with what VS Code's preview uses
+  // (see slugifyHeading in noteIndex.ts and docs/SPEC.md "Heading slug").
+  const href = section ? `${base}#${slugifyHeading(section)}` : base;
   token.attrSet('href', href);
   // VS Code's markdown-language-features wraps our extendMarkdownIt with its
   // own link_open rule that runs FIRST and copies the (then-fallback) `href`
@@ -167,9 +181,10 @@ function readSourceUri(env: unknown): vscode.Uri | null {
   return null;
 }
 
-function encodeFallback(target: string): string {
+function encodeFallback(target: string, section?: string | null): string {
   const withExt = /\.md$/i.test(target) ? target : `${target}.md`;
-  return encodePath(withExt);
+  const base = encodePath(withExt);
+  return section ? `${base}#${slugifyHeading(section)}` : base;
 }
 
 function encodePath(p: string): string {
