@@ -74,3 +74,70 @@ suite('WikiLinkDocumentLinkProvider (alias coverage for #6)', () => {
     assert.deepStrictEqual(args, ['does-not-exist']);
   });
 });
+
+suite('WikiLinkDocumentLinkProvider — section refs', () => {
+  let index: NoteIndex;
+  let provider: WikiLinkDocumentLinkProvider;
+
+  suiteSetup(async () => {
+    index = new NoteIndex();
+    await index.ready();
+    provider = new WikiLinkDocumentLinkProvider(index);
+  });
+
+  suiteTeardown(() => {
+    index.dispose();
+  });
+
+  test('[[Notes#Introduction]] resolves to Notes.md with a #L fragment at the heading line', async () => {
+    const doc = await vscode.workspace.openTextDocument({
+      language: 'markdown',
+      content: '[[Notes#Introduction]]\n'
+    });
+    const links = provider.provideDocumentLinks(doc) ?? [];
+    assert.strictEqual(links.length, 1);
+    const link = links[0];
+    assert.strictEqual(link.wikiTarget, 'Notes');
+    assert.strictEqual(link.wikiSection, 'Introduction');
+
+    const resolved = await provider.resolveDocumentLink(link);
+    assert.ok(resolved.target, 'should have a target URI');
+    assert.strictEqual(resolved.target!.scheme, 'file');
+    assert.ok(
+      resolved.target!.fsPath.endsWith(`${path.sep}Notes.md`),
+      `expected Notes.md, got ${resolved.target!.fsPath}`
+    );
+    // ## Introduction is on line 5 (1-based) of Notes.md — 0-indexed line 4,
+    // so the L-fragment is L5.
+    assert.strictEqual(
+      resolved.target!.fragment,
+      'L5',
+      `expected fragment L5, got ${resolved.target!.fragment}`
+    );
+  });
+
+  test('[[Notes#NoSuchHeading]] falls back to Notes.md without a line fragment', async () => {
+    const doc = await vscode.workspace.openTextDocument({
+      language: 'markdown',
+      content: '[[Notes#NoSuchHeading]]\n'
+    });
+    const links = provider.provideDocumentLinks(doc) ?? [];
+    assert.strictEqual(links.length, 1);
+    const link = links[0];
+    assert.strictEqual(link.wikiSection, 'NoSuchHeading');
+
+    const resolved = await provider.resolveDocumentLink(link);
+    assert.ok(resolved.target, 'should have a target URI');
+    assert.strictEqual(resolved.target!.scheme, 'file');
+    assert.ok(
+      resolved.target!.fsPath.endsWith(`${path.sep}Notes.md`),
+      `expected Notes.md, got ${resolved.target!.fsPath}`
+    );
+    // Missing heading → line 0 → no fragment appended.
+    assert.strictEqual(
+      resolved.target!.fragment,
+      '',
+      `expected no fragment, got ${resolved.target!.fragment}`
+    );
+  });
+});
