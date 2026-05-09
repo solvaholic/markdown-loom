@@ -1,47 +1,33 @@
 # markdown-loom
 
-A VS Code extension for plain-markdown note taking. Wikilinks, backlinks, and
-Obsidian-Tasks-compatible checkboxes - no proprietary formats, no databases,
-just `.md` files.
+A VS Code extension for plain-markdown note taking. Wiki-style linking
+and backlinks across a folder of `.md` files - no proprietary formats,
+no sidecar databases, just markdown.
 
-See [docs/SPEC.md](./docs/SPEC.md) for the full specification.
+See [docs/SPEC.md](./docs/SPEC.md) for the full specification and
+[docs/comparisons.md](./docs/comparisons.md) for how it relates to
+other VS Code note-taking extensions.
 
 ![demo](docs/demo.gif)
 
 ## Status
 
-Phase 1 (MVP):
+Shipped:
 
 - [x] Wiki-style linking (`[[Note]]`, `[[Note|Alias]]`)
 - [x] Backlinks panel
-- [x] Basic task support (toggle + done date)
+- [x] Task toggle with auto-stamped done date (frozen, see below)
 
-Phase 2 features (task queries, quick task entry) are planned after MVP.
+Planned (in priority order):
+
+- [ ] Section references (`[[Note#Heading]]`) in editor and preview
+- [ ] Link rewrite on file rename (via VS Code's rename hook)
+- [ ] Block references (`[[Note#^blockid]]`)
+
+The Phase 2 task query DSL and "Create task" command previously listed
+here are **out of scope**. See [Tasks (frozen)](#tasks-frozen) below.
 
 ## Features
-
-### Backlinks panel
-
-- Open the **Backlinks** view in the Explorer to see notes that link to
-  the active markdown file, grouped by source file with line previews.
-- The panel refreshes when you switch files or save changes.
-- **Filename collisions surface here.** When a bare `[[Foo]]` matches
-  multiple notes (e.g., two `Foo.md` files in different folders or
-  workspace roots), navigation picks one winner via the same-folder
-  tiebreaker, but the link registers as a backlink on *every*
-  candidate. Non-winner entries are flagged "ambiguous" with a ⚠ icon
-  so you can spot and resolve the collision (rename, move, or live with
-  the warning - see `docs/SPEC.md` 'Wikilink target syntax').
-
-### Tasks
-
-- Place the cursor on a list item and press `Ctrl`+`Alt`+`T`
-  (`Cmd`+`Alt`+`T` on macOS) to toggle the checkbox between `[ ]` and
-  `[x]`.
-- Completing a task auto-appends `✅ YYYY-MM-DD` (configurable via
-  `markdownLoom.autoAddDoneDate`).
-- All other emoji metadata (⏳, 📅, 🔁, ⏫, 🔼, 🔽) and `#tags` are
-  preserved exactly when toggling.
 
 ### Wiki-style linking
 
@@ -59,13 +45,62 @@ Phase 2 features (task queries, quick task entry) are planned after MVP.
   you need to point at a specific path. See `docs/SPEC.md` 'Wikilink
   target syntax' for the full rules.
 
+### Backlinks panel
+
+- Open the **Backlinks** view in the Explorer to see notes that link to
+  the active markdown file, grouped by source file with line previews.
+- The panel refreshes when you switch files or save changes.
+- **Filename collisions surface here.** When a bare `[[Foo]]` matches
+  multiple notes (e.g., two `Foo.md` files in different folders or
+  workspace roots), navigation picks one winner via the same-folder
+  tiebreaker, but the link registers as a backlink on *every*
+  candidate. Non-winner entries are flagged "ambiguous" with a ⚠ icon
+  so you can spot and resolve the collision (rename, move, or live
+  with the warning - see `docs/SPEC.md` 'Wikilink target syntax').
+
+### Tasks (frozen)
+
+Markdown Loom ships a small Obsidian-Tasks-compatible toggle command
+that predates the current direction. **This area is frozen**: the
+existing behavior keeps working, but no new task features are planned.
+For richer task workflows, use [Obsidian](https://obsidian.md) on the
+same `.md` files, or watch
+[`sugitlab/vstasks`](https://github.com/sugitlab/vstasks) once it
+matures.
+
+What still works:
+
+- Place the cursor on a list item and press `Ctrl`+`Alt`+`T`
+  (`Cmd`+`Alt`+`T` on macOS) to toggle the checkbox between `[ ]` and
+  `[x]`.
+- Completing a task auto-appends `✅ YYYY-MM-DD` (configurable via
+  `markdownLoom.autoAddDoneDate`).
+- All other emoji metadata (⏳, 📅, 🔁, ⏫, 🔼, 🔽) and `#tags` are
+  preserved exactly when toggling.
+
+## Recommended companions
+
+Markdown Loom focuses narrowly on wikilinks and backlinks. For
+general markdown editing ergonomics, install **Markdown All in One**
+([`yzhang.markdown-all-in-one`](https://marketplace.visualstudio.com/items?itemName=yzhang.markdown-all-in-one),
+MIT) alongside it. It provides:
+
+- List continuation on Enter
+- Tab indent / Shift+Tab outdent inside lists
+- Toggle bold / italic / strikethrough
+- Table of contents generation
+- GFM checkbox toggle (`Alt`+`C`)
+
+The two extensions coexist cleanly. Markdown Loom does not bundle or
+require Markdown All in One - it's a recommendation, not a
+dependency.
+
 ## Settings
 
 | Setting | Default | Description |
 | --- | --- | --- |
 | `markdownLoom.wikiLinkStyle` | `name` | Reserved for future use. `[[` completion always inserts the note basename. |
-| `markdownLoom.taskDateFormat` | `YYYY-MM-DD` | Date format used when stamping task dates. |
-| `markdownLoom.queryLimitDefault` | `50` | Default maximum results for a `tasks` query block (Phase 2). |
+| `markdownLoom.taskDateFormat` | `YYYY-MM-DD` | Date format for the auto-stamped done date on the (frozen) task toggle. |
 | `markdownLoom.autoAddDoneDate` | `true` | Automatically append `✅ YYYY-MM-DD` when toggling a task done. |
 
 ## Keyboard shortcuts

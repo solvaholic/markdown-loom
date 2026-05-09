@@ -11,31 +11,40 @@ out to be a sliver, name that too.
 
 ## What Markdown Loom is trying to be
 
-From `docs/SPEC.md`:
+From `docs/SPEC.md` (post-2026-05-09 direction reset):
 
-> Build a VS Code extension that brings essential note-taking features
-> to markdown files, supporting both wiki-style linking and Obsidian
-> Tasks format. The extension must work with plain markdown files in
-> any folder you can read - typically a single local directory,
-> optionally synced or backed up by tools of your choice.
+> Markdown Loom is a VS Code extension for plain-markdown note taking.
+> It focuses on **wiki-style linking and backlinks** across a folder
+> of `.md` files. ... The intended user keeps notes in plain markdown
+> (often Obsidian compatible), syncs them however they prefer, and
+> wants `[[wikilink]]` ergonomics in VS Code without adopting a new
+> schema, hierarchy convention, or sidecar database.
 
-Three principles drive the spec:
+Four principles drive the spec:
 
-1. **Plain text first** - no proprietary formats, no databases.
-2. **Minimal dependencies** - lightweight and fast.
-3. **Unix philosophy** - do a few things well, let other tools handle
-   the rest.
+1. **Plain text first** - the `.md` files are the only source of
+   truth.
+2. **No proprietary persistent sidecar** - no `.markdownloom/`
+   directory, no SQLite, no schema to migrate. The in-memory note
+   index is rebuilt from the files.
+3. **Minimal dependencies** - lightweight and fast.
+4. **Unix philosophy** - do a few things well; recommend Markdown All
+   in One for editing ergonomics rather than reimplementing them.
 
 The intended user keeps notes in plain `.md` files (often Obsidian
-compatible, often synced via iCloud/Syncthing/git), wants `[[wikilink]]`
-ergonomics inside VS Code, wants to round-trip Obsidian Tasks emoji
-without losing metadata, and does **not** want to adopt a new schema,
-hierarchy convention, or graph database to do so.
+compatible, often synced via iCloud/Syncthing/git), wants
+`[[wikilink]]` ergonomics inside VS Code, and does **not** want to
+adopt a new schema, hierarchy convention, or graph database to do
+so.
 
-That niche matters because every adjacent project either asks for more
-buy-in (Foam, Dendron) or covers only half the problem (kortina and
-Memo do wikilinks but not Obsidian Tasks; vstasks does tasks but not
-wikilinks).
+The original spec also bundled an Obsidian-Tasks toggle and a
+planned task query DSL. As of 2026-05-09 the **task half is frozen**
+(toggle keeps working; no new task work) and the wikilink half is
+the focus. See [Direction-setting decisions](#direction-setting-decisions-2026-05-09-ratified)
+below for the full reasoning.
+
+That niche still matters because every adjacent project either asks
+for more buy-in (Foam, Dendron) or has stalled (kortina, Memo).
 
 ## Evaluation dimensions
 
@@ -114,11 +123,11 @@ Compatible alongside any of the above.
 | `[[Basename]]` completion | ✅ | ✅ | ✅ | ✅ | ✅ (hierarchical) |
 | `[[Note\|Alias]]` | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Path-qualified targets | ❌ (out of scope) | optional mode | ✅ | ✅ | hierarchy is the path |
-| Section/block refs | ❌ | ❌ | sections | ✅ sections + blocks | ✅ |
-| Multi-root tiebreaker | ✅ same-root preferred | configurable | clash detection | unique-id resolver | vault model |
+| Section/block refs | 🔜 planned (headings then blocks) | ❌ | sections | ✅ sections + blocks | ✅ |
+| Multi-root tiebreaker | ✅ same-folder preferred | configurable | clash detection | unique-id resolver | vault model |
 | Backlinks panel | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Ignore inside fenced code | ✅ (explicit acceptance criterion in SPEC.md) | partial | partial | ✅ | ✅ |
-| Link rename on file rename | ❌ | ❌ | ✅ | ✅ | ✅ |
+| Link rename on file rename | 🔜 planned (via `onWillRenameFiles`) | ❌ | ✅ | ✅ | ✅ |
 | Graph view | ❌ | ❌ | ❌ | ✅ | ✅ |
 | Create-on-click | ✅ | ✅ | ✅ | ✅ | ✅ (via lookup) |
 
@@ -165,8 +174,8 @@ disqualifies itself.
 | Obsidian Tasks emoji (⏳📅🔁⏫✅) | ✅ | ✅ | ❌ | ❌ |
 | Toggle adds done date automatically | ✅ | partial | ❌ | tracks completion separately |
 | Preserve trailing metadata on toggle | ✅ explicit acceptance criterion in SPEC.md | unverified | n/a | n/a |
-| Query blocks in markdown preview | Phase 2 | ✅ (WebView) | ❌ | ❌ (statistics, not query) |
-| Date filters (`due before X`) | Phase 2 | ✅ | ❌ | ❌ |
+| Query blocks in markdown preview | ❌ (out of scope) | ✅ (WebView) | ❌ | ❌ (statistics, not query) |
+| Date filters (`due before X`) | ❌ (out of scope) | ✅ | ❌ | ❌ |
 | Skip tasks inside fenced code | ✅ explicit acceptance criterion in SPEC.md | unverified | n/a | n/a |
 | Round-trips with Obsidian on mobile | ✅ | ✅ | n/a | ❌ |
 
@@ -177,90 +186,87 @@ disqualifies itself.
 - **Smaller surface area than Foam or Dendron, by design.** No graph
   view, no templates, no schemas, no daily-note conventions. Easier to
   adopt, easier to remove, easier to reason about.
-- **Obsidian-compatible task semantics in VS Code, with a maintained
-  publisher.** That's a real gap today: kortina has no tasks, Memo has
-  no tasks, vstasks is unproven, Todo+ uses a non-markdown format.
 - **MIT-licensed and acceptance-criteria-driven.** SPEC.md spells out
-  edge cases (fenced code, multi-root tiebreaker, metadata
+  edge cases (fenced code, same-folder tiebreaker, metadata
   preservation) that older extensions fudge.
-- **Multi-root behavior is a first-class acceptance criterion**, not
-  an afterthought. Same-root tiebreaker matches how people actually
-  separate work/personal vaults.
+- **Multi-root behavior is a tested regression guard.** The
+  same-folder tiebreaker degrades naturally to "same root" without
+  dedicated multi-root code paths; users on a single notes folder
+  get the design center, users on multi-root get a working
+  side-effect.
+- **Honest about what's in and out.** Tasks are explicitly frozen
+  rather than perpetually "Phase 2". Users aren't waiting for a query
+  DSL that isn't coming.
 
 ### Losses / honest gaps
 
-- **Foam and Dendron do far more.** If you want graphs, block refs,
-  templates, hierarchical refactor, or daily-note infrastructure,
-  Markdown Loom is not for you and isn't trying to be.
-- **No link-sync on rename (must-add).** Memo, Foam, and Dendron all
-  update inbound `[[links]]` when you rename a target file. Markdown
-  Loom's spec doesn't include this today; the maintainer has flagged
-  it as in-scope going forward. It's the single most-requested feature
-  in note tools of this kind, and skipping it long-term would be a
-  credibility problem.
-- **No section/block refs (must-add).** `[[note#heading]]` and
-  `[[note#^blockid]]` are table stakes in Foam and Obsidian. Markdown
-  Loom's spec explicitly limits targets to bare basenames; the
-  maintainer has flagged this as in-scope going forward. Implies a
-  spec amendment, not just an implementation task.
-- **Phase 2 query renderer is Markdown Loom's biggest technical risk.**
-  VS Code's preview pipeline has known sharp edges (per existing repo
-  memories about render-phase URI access and `extendMarkdownIt` return
-  values). Foam shipped this; vstasks ships it via WebView, not the
-  built-in preview. Worth scoping carefully.
-- **Phase 2 task queries duplicate Obsidian's own DSL, partially.**
-  Risk: users expect full Obsidian Tasks query syntax, get a subset,
-  feel cheated. Either lean into "subset, by design" in docs or commit
-  to a fuller implementation.
+- **Foam and Dendron do far more.** If you want graphs, templates,
+  hierarchical refactor, or daily-note infrastructure, Markdown Loom
+  is not for you and isn't trying to be.
+- **No link-sync on rename yet.** Memo, Foam, and Dendron all update
+  inbound `[[links]]` when you rename a target file. Markdown Loom
+  has this in the roadmap (`onWillRenameFiles` + `WorkspaceEdit`)
+  but hasn't shipped it. It's the single most-requested feature in
+  note tools of this kind, and shipping it is a credibility item.
+- **No section/block refs yet.** `[[note#heading]]` and
+  `[[note#^blockid]]` are table stakes in Foam and Obsidian.
+  Markdown Loom has these in the roadmap (Phase A: headings; Phase
+  B: blocks). The current implementation only resolves bare
+  basenames.
+- **Tasks are frozen, not removed.** Users who installed 0.2.0 for
+  the task toggle still have it; users who want a richer task
+  workflow have to leave (Obsidian, vstasks). That's the right
+  tradeoff but worth being upfront about.
 
 ### Overlap to watch
 
-- **vstasks** is the closest direct competitor on the task half. If it
-  matures (real README, working source link, English docs, more than
-  one contributor), Markdown Loom needs a clearer differentiation
-  story than "more polished" - probably "wikilinks + tasks in one
-  extension with Obsidian round-trip guarantees".
+- **vstasks** is the closest project on the task half. Markdown Loom
+  is no longer competing there; if vstasks matures (real README,
+  working source link, English docs, more than one contributor),
+  it's the recommended pairing rather than a competitor.
 - **kortina** still owns the "minimal wikilinks" niche by name
   recognition despite being slow. Markdown Loom needs to clearly
-  out-execute on the bits kortina doesn't (tasks, fenced-code
-  correctness, multi-root tiebreaker) rather than re-litigating
-  wikilinks alone.
+  out-execute on the bits kortina doesn't (fenced-code correctness,
+  same-folder tiebreaker, section refs, rename) rather than
+  re-litigating completion alone.
 
-## Direction-setting decisions (2026-05-09)
+## Direction-setting decisions (2026-05-09, ratified)
 
-Captured during review of this comparison:
+These were captured during the original review. All four are now
+**decisions**, reflected in `docs/SPEC.md` and `README.md`:
 
-1. **Wikilinks + tasks bundling is probably a coupling, not a feature.**
-   A user who wants only wikilinks could install kortina; a user who
-   wants only tasks could (eventually) install vstasks. The bundle is
-   convenient but doesn't justify itself unless the integration adds
-   something specific (e.g., task queries that follow `[[wikilinks]]`
-   to resolve `path includes` filters across linked notes). Worth
-   keeping under review - bundling may not survive a Phase 3 rethink.
+1. **Tasks are frozen, not bundled as a feature.** The current toggle
+   + auto-done-date keeps working; no new task code is planned. A
+   user who wants only wikilinks shouldn't have to reason about the
+   task half. A user who wants tasks should use Obsidian on the same
+   files, or watch `sugitlab/vstasks` once it matures. The
+   hypothetical "queries that follow `[[wikilinks]]` to resolve
+   `path includes` filters" integration is not enough to justify
+   carrying the task surface area indefinitely.
 
-2. **Link-sync on rename is in scope** going forward. Spec doesn't
-   describe it yet; needs a proposal.
+2. **Link rewrite on rename is in scope.** Implementation will use
+   `vscode.workspace.onWillRenameFiles` to return a `WorkspaceEdit`
+   so the rename and the link rewrites land as one undoable step.
+   Limitation: only catches renames VS Code knows about (Explorer,
+   F2, refactor); terminal `mv` / Finder / out-of-editor `git mv`
+   surface as broken backlinks instead. No "guess the rename"
+   heuristic.
 
-3. **Section and block references (`[[note#heading]]`,
-   `[[note#^blockid]]`) are in scope** going forward. The current
-   "bare basename only" rule in `docs/SPEC.md` will need an amendment.
+3. **Section and block references are in scope.** Phase A: heading
+   refs (`[[Note#Heading]]`) in editor and preview. Phase B: block
+   refs (`[[Note#^blockid]]`). The "bare basename only" rule in
+   `docs/SPEC.md` has been amended.
 
-4. **"Why not Foam?" is unanswered.** The maintainer hasn't tried Foam
-   recently enough to compare honestly. README should not assert "Foam
-   is too much" without evidence; revisit after a hands-on pass.
+4. **Single-folder is the design center.** Multi-root workspaces
+   keep working as a side-effect of indexing the entire workspace
+   (and stay in tests as a regression guard), but docs no longer
+   foreground them. The same-folder tiebreaker degrades naturally to
+   "same root" in multi-root setups.
 
-## Still-open questions
-
-1. **If wikilinks + tasks decouple, what's the path?** Two extensions
-   under the same publisher? Optional task feature toggled in
-   settings? A clean Phase 3 split with shared indexing? Worth
-   sketching before locking in more Phase 2 task work.
-
-2. **Is single-root the design center, or multi-root?** Tests open the
-   multi-root fixture (per repo memory: "Multi-root is the default
-   *test* environment, not the default *user* environment"). Make sure
-   docs and demo match the user's reality (single folder), even though
-   tests must keep multi-root green.
+Still open: **a hands-on Foam comparison.** The maintainer hasn't
+trialed Foam recently enough to compare honestly. README and this
+doc avoid asserting "Foam is too much" without evidence; revisit
+after a hands-on pass.
 
 ## Methodology and limitations
 
