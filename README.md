@@ -23,6 +23,10 @@ Planned (in priority order):
 - [ ] Section references (`[[Note#Heading]]`) in editor and preview
 - [ ] Link rewrite on file rename (via VS Code's rename hook)
 - [ ] Block references (`[[Note#^blockid]]`)
+- [ ] Wikilinks to non-markdown files (`[[Some File.pdf]]`)
+- [ ] Drag-and-drop file insertion (Finder → attachment + wikilink)
+- [ ] Configurable click-to-create behavior (prompt / auto / never)
+- [ ] Configurable new-note location
 
 The Phase 2 task query DSL and "Create task" command previously listed
 here are **out of scope**. See [Tasks (frozen)](#tasks-frozen) below.

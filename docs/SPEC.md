@@ -112,6 +112,9 @@ Legal forms (planned, see [Roadmap](#roadmap)):
 - `[[Note Name#Heading|Stacey]]` - same, with display alias.
 - `[[Note Name#^blockid]]` - link to an Obsidian-style block
   reference. Phase B.
+- `[[Some File.pdf]]` - link to a non-`.md` attachment by full
+  basename (extension included). See
+  ["Wikilinks to non-markdown files"](#wikilinks-to-non-markdown-files).
 
 Not legal (treated as plain text, not as wikilinks):
 
@@ -219,6 +222,87 @@ Support `[[Note Name#^blockid]]`. Requires injecting anchor markup at
 the referenced block in preview, and indexing block IDs alongside the
 note text. Lower priority than Phase A and rename.
 
+### Wikilinks to non-markdown files
+
+Support `[[Some File.pdf]]`, `[[diagram.png]]`, and similar targets
+that point at a non-`.md` file in the workspace. Obsidian-compatible
+behavior: a target with an extension other than `.md` resolves to the
+matching file by full basename (extension included), and clicking
+opens it via the OS / VS Code default handler.
+
+- **Resolution**: targets with a recognized non-`.md` extension look
+  up against a parallel `nonMarkdownByBasename` map; targets without
+  an extension (or with a `.md` extension) keep the current
+  behavior.
+- **Indexing**: extend the file watcher and initial scan to include
+  a configurable allowlist of attachment extensions (default at
+  least: `pdf`, `png`, `jpg`, `jpeg`, `gif`, `svg`, `webp`, `mp4`,
+  `mov`, `webm`, `mp3`, `m4a`, `wav`). Avoid indexing the entire
+  workspace by default - perf is the reason `**/*.md` is the current
+  scope.
+- **Preview**: the `link_open` rule emits a regular file URL (no
+  `.md` append) and lets VS Code open with the default handler.
+- **Backlinks**: non-`.md` targets surface in the Backlinks panel
+  the same way `.md` targets do.
+- **Acceptance**: `[[Some File.pdf]]` resolves and opens the PDF;
+  `[[Some File]]` continues to resolve only against `.md` notes
+  (unchanged); the same-folder tiebreaker applies to non-`.md`
+  collisions; non-`.md` resolution is case-insensitive on basename.
+
+### Drag-and-drop file insertion
+
+Dragging a file from Finder or the VS Code Explorer into an open
+markdown editor copies the file into a configurable attachments
+folder and inserts a wikilink to it at the drop position.
+
+- **API**: `vscode.languages.registerDocumentDropEditProvider`
+  consuming `text/uri-list` MIME data.
+- **Destination**: configurable via
+  `markdownLoom.attachmentsFolder` with options:
+  - `sameFolderAsActive` (default) - alongside the active note.
+  - `workspaceRoot` - at the workspace folder root.
+  - `customPath` - a workspace-relative path from
+    `markdownLoom.attachmentsCustomPath`.
+- **Collision handling**: never overwrite. If `name.pdf` exists,
+  write `name-1.pdf`, `name-2.pdf`, etc.
+- **Insertion**: insert `[[<basename>.<ext>]]` (relying on the
+  non-markdown wikilink work above to resolve it).
+- **Acceptance**: dropping `Some File.pdf` from Finder copies it to
+  the configured folder, inserts `[[Some File.pdf]]`, and Cmd+Click
+  opens the copied file; existing files are never overwritten;
+  dropping a non-file (e.g., URL) falls through to VS Code's default
+  drop behavior.
+
+### Configurable click-to-create behavior
+
+Replace the current "Create note?" prompt on click-to-missing with a
+user-selectable policy.
+
+- **Setting**: `markdownLoom.createMissingNoteOnClick` enum:
+  - `prompt` (default - current behavior).
+  - `auto` - create silently and open.
+  - `never` - do nothing on click; missing target stays missing.
+- **Acceptance**: existing behavior is unchanged at default; `auto`
+  creates and opens with no UI; `never` makes click-to-missing a
+  no-op (no error toast, no creation).
+
+### Configurable new-note location
+
+Today, click-to-create writes the new file at the workspace folder
+root. Make the destination configurable.
+
+- **Setting**: `markdownLoom.newNoteLocation` enum:
+  - `workspaceRoot` (default - current behavior).
+  - `sameFolderAsActive` - alongside the source note.
+  - `customPath` - a workspace-relative path from
+    `markdownLoom.newNoteCustomPath`.
+- **Interaction with multi-root**: resolve `customPath` against the
+  workspace folder of the source note, not the first folder.
+- **Acceptance**: default behavior unchanged; `sameFolderAsActive`
+  places the new note next to the file containing the clicked link;
+  `customPath` honors a workspace-relative directory and creates
+  intermediate folders as needed.
+
 ### Recommended companion extensions
 
 Markdown Loom should not reimplement markdown editing ergonomics that
@@ -296,6 +380,23 @@ markdown-loom/
 `markdownLoom.queryLimitDefault` is **deprecated** and will be removed
 in a future release: the Phase 2 task query work that motivated it is
 no longer planned.
+
+Planned settings (see [Roadmap](#roadmap)):
+
+- `markdownLoom.attachmentExtensions` (string array) - allowlist of
+  file extensions indexed for non-`.md` wikilink resolution.
+- `markdownLoom.attachmentsFolder` (`sameFolderAsActive` |
+  `workspaceRoot` | `customPath`) - destination policy for
+  drag-and-drop attachments.
+- `markdownLoom.attachmentsCustomPath` (string) - workspace-relative
+  path used when `attachmentsFolder` is `customPath`.
+- `markdownLoom.createMissingNoteOnClick` (`prompt` | `auto` |
+  `never`) - behavior when clicking a wikilink to a missing note.
+- `markdownLoom.newNoteLocation` (`workspaceRoot` |
+  `sameFolderAsActive` | `customPath`) - where click-to-create
+  writes the new note.
+- `markdownLoom.newNoteCustomPath` (string) - workspace-relative
+  path used when `newNoteLocation` is `customPath`.
 
 ## Success criteria
 
