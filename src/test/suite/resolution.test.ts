@@ -218,4 +218,28 @@ suite('NoteIndex section refs (heading resolution)', () => {
     const line = index.findHeadingLine(notes, 'NoSuchHeadingXYZ');
     assert.strictEqual(line, null);
   });
+
+  test('findBlockIdLine returns the line of the matching block id', () => {
+    // rootA/Blocks.md declares ^para-1 on line 2 (0-indexed).
+    const blocks = uriFor('rootA', 'Blocks.md');
+    const line = index.findBlockIdLine(blocks, 'para-1');
+    assert.strictEqual(line, 2);
+  });
+
+  test('findBlockIdLine is case-insensitive', () => {
+    const blocks = uriFor('rootA', 'Blocks.md');
+    const line = index.findBlockIdLine(blocks, 'PARA-1');
+    assert.strictEqual(line, 2);
+  });
+
+  test('findBlockIdLine returns null for a missing id (fallback policy)', () => {
+    const blocks = uriFor('rootA', 'Blocks.md');
+    assert.strictEqual(index.findBlockIdLine(blocks, 'no-such-id'), null);
+  });
+
+  test('getBlockIds returns every indexed id for a note in document order', () => {
+    const blocks = uriFor('rootA', 'Blocks.md');
+    const ids = index.getBlockIds(blocks).map((b) => b.id);
+    assert.deepStrictEqual(ids, ['para-1', 'list-1', 'para-2']);
+  });
 });

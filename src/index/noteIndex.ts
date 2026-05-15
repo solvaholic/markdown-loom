@@ -17,6 +17,25 @@ export interface HeadingInfo {
   slug: string;
 }
 
+/**
+ * A single Obsidian-style block reference id extracted from a note's text.
+ *
+ * Block ids appear as a trailing `^id` token on a line:
+ *
+ *     Some paragraph text. ^abc-123
+ *
+ * Per docs/SPEC.md "Section references (Phase B: block IDs)" the id char set
+ * is ASCII letters, digits, and hyphen.
+ */
+export interface BlockIdInfo {
+  /** The id, without the leading `^`. */
+  id: string;
+  /** 0-indexed line number in the source file. */
+  line: number;
+  /** Column of the `^` marker on that line (0-indexed). */
+  column: number;
+}
+
 export interface RawLink {
   rawTarget: string;
   range: vscode.Range;
@@ -39,6 +58,10 @@ export interface BacklinkLocation {
 const wikilinkPattern = /\[\[([^\]]+)\]\]/g;
 const fencePattern = /^[ \t]{0,3}(```|~~~)/;
 const atxHeadingPattern = /^#{1,6}[ \t]+(.+?)[ \t]*(?:#+[ \t]*)?$/;
+// Trailing block id on a line: optional whitespace, `^`, then id chars,
+// optional trailing whitespace, to end-of-line. The `^` must be preceded by
+// whitespace or start-of-line so we don't match `foo^bar`.
+const blockIdPattern = /(?:^|\s)\^([A-Za-z0-9-]+)\s*$/;
 
 export function uriKey(uri: vscode.Uri): string {
   return uri.scheme === 'file' ? uri.fsPath.toLowerCase() : uri.toString().toLowerCase();
@@ -92,6 +115,37 @@ export function extractHeadingsFromText(text: string): HeadingInfo[] {
   return headings;
 }
 
+/**
+ * Extract all Obsidian-style block ids (`^id` at end of line) from `text`,
+ * skipping ids inside fenced code blocks. Returns one {@link BlockIdInfo} per
+ * id, in document order. When a single file declares the same id more than
+ * once, every occurrence is returned; {@link NoteIndex.findBlockIdLine} picks
+ * the first as the navigation target.
+ */
+export function extractBlockIdsFromText(text: string): BlockIdInfo[] {
+  const lines = text.split(/\r?\n/);
+  const ids: BlockIdInfo[] = [];
+  let inFence = false;
+  for (let i = 0; i < lines.length; i += 1) {
+    const line = lines[i];
+    if (fencePattern.test(line)) {
+      inFence = !inFence;
+      continue;
+    }
+    if (inFence) {
+      continue;
+    }
+    const m = blockIdPattern.exec(line);
+    if (m) {
+      // Column of the `^` marker: match.index points at the leading
+      // whitespace (or 0 if the line starts with `^`).
+      const caretOffset = m[0].startsWith('^') ? 0 : m[0].indexOf('^');
+      ids.push({ id: m[1], line: i, column: m.index + caretOffset });
+    }
+  }
+  return ids;
+}
+
 export function extractWikiLinksFromText(text: string): RawLink[] {
   const lines = text.split(/\r?\n/);
   const links: RawLink[] = [];
@@ -129,6 +183,7 @@ export class NoteIndex implements vscode.Disposable {
   private readonly basenameToKeys = new Map<string, string[]>();
   private readonly sourceLinks = new Map<string, RawLink[]>();
   private readonly headings = new Map<string, HeadingInfo[]>();
+  private readonly blockIds = new Map<string, BlockIdInfo[]>();
   private readonly backlinks = new Map<string, Map<string, BacklinkLocation[]>>();
   private readonly disposables: vscode.Disposable[] = [];
   private readonly _onDidChangeIndex = new vscode.EventEmitter<void>();
@@ -190,6 +245,7 @@ export class NoteIndex implements vscode.Disposable {
     this.basenameToKeys.clear();
     this.sourceLinks.clear();
     this.headings.clear();
+    this.blockIds.clear();
     this.backlinks.clear();
     for (const file of files) {
       this.registerNote(file);
@@ -205,8 +261,10 @@ export class NoteIndex implements vscode.Disposable {
         }
         const links = extractWikiLinksFromText(text);
         const fileHeadings = extractHeadingsFromText(text);
+        const fileBlockIds = extractBlockIdsFromText(text);
         this.sourceLinks.set(uriKey(file), links);
         this.headings.set(uriKey(file), fileHeadings);
+        this.blockIds.set(uriKey(file), fileBlockIds);
       })
     );
     if (myGeneration !== this.generation) {
@@ -318,8 +376,10 @@ export class NoteIndex implements vscode.Disposable {
     const text = knownText ?? (await readFileText(uri));
     const links = extractWikiLinksFromText(text);
     const fileHeadings = extractHeadingsFromText(text);
+    const fileBlockIds = extractBlockIdsFromText(text);
     this.sourceLinks.set(key, links);
     this.headings.set(key, fileHeadings);
+    this.blockIds.set(key, fileBlockIds);
     if (isCreate || !wasIndexed) {
       this.rebuildBacklinks();
     } else {
@@ -347,6 +407,7 @@ export class NoteIndex implements vscode.Disposable {
     this.unregisterNote(key);
     this.sourceLinks.delete(key);
     this.headings.delete(key);
+    this.blockIds.delete(key);
     this.removeSourceFromBacklinks(key);
     this.rebuildBacklinks();
     this._onDidChangeIndex.fire();
@@ -501,6 +562,27 @@ export class NoteIndex implements vscode.Disposable {
   /** Return all indexed headings for the given note URI. */
   getHeadings(targetUri: vscode.Uri): HeadingInfo[] {
     return this.headings.get(uriKey(targetUri)) ?? [];
+  }
+
+  /** Return all indexed block ids for the given note URI. */
+  getBlockIds(targetUri: vscode.Uri): BlockIdInfo[] {
+    return this.blockIds.get(uriKey(targetUri)) ?? [];
+  }
+
+  /**
+   * Find the 0-indexed line number of the first block id in `targetUri` that
+   * case-insensitively matches `id`. Returns `null` if no match is found (the
+   * caller should fall back to line 0 — matches the missing-heading fallback
+   * policy in docs/SPEC.md).
+   */
+  findBlockIdLine(targetUri: vscode.Uri, id: string): number | null {
+    const fileIds = this.blockIds.get(uriKey(targetUri));
+    if (!fileIds || fileIds.length === 0) {
+      return null;
+    }
+    const needle = id.trim().toLowerCase();
+    const hit = fileIds.find((b) => b.id.toLowerCase() === needle);
+    return hit?.line ?? null;
   }
 
   /**

@@ -1,4 +1,5 @@
 import * as assert from 'assert';
+import * as fs from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';
 import MarkdownIt from 'markdown-it';
@@ -257,6 +258,69 @@ suite('WikiLink Preview Renderer (NoteIndex-aware)', () => {
       '[[NoSuchNote#My Section]]'
     );
     assert.match(html, /href="NoSuchNote\.md#my-section"/);
+  });
+
+  test('block ref: resolved href uses literal #^id (no slugify)', () => {
+    // [[Blocks#^para-1]] from rootA/Index.md → ./Blocks.md#%5Epara-1
+    const html = renderWith(uriFor('rootA', 'Index.md'), '[[Blocks#^para-1]]');
+    assert.match(html, /href="\.\/Blocks\.md#%5Epara-1"/);
+  });
+
+  test('block ref: data-href also uses literal #^id (regression guard)', () => {
+    const md = new MarkdownIt();
+    new WikiLinkRenderer(index).extendMarkdownIt(md);
+    const previous = md.renderer.rules.link_open;
+    md.renderer.rules.link_open = (tokens, idx, options, env, self) => {
+      const token = tokens[idx];
+      const href = token.attrGet('href');
+      if (typeof href === 'string') {
+        token.attrSet('data-href', href);
+      }
+      if (previous) {
+        return previous(tokens, idx, options, env, self);
+      }
+      return self.renderToken(tokens, idx, options);
+    };
+    const html = md.render('[[Blocks#^para-1]]', {
+      currentDocument: uriFor('rootA', 'Index.md')
+    });
+    assert.match(html, /data-href="\.\/Blocks\.md#%5Epara-1"/);
+  });
+
+  test('block ref: data-wikilink-blockref attribute is set on the anchor', () => {
+    const html = renderWith(uriFor('rootA', 'Index.md'), '[[Blocks#^para-1]]');
+    assert.match(html, /data-wikilink-blockref="1"/);
+  });
+
+  test('block ref: anchor span is injected at the source line of the block id', () => {
+    // Render Blocks.md itself with its real on-disk content so line numbers
+    // align with what the index extracted.
+    const blocksUri = uriFor('rootA', 'Blocks.md');
+    const md = new MarkdownIt();
+    new WikiLinkRenderer(index).extendMarkdownIt(md);
+    const html = md.render(fs.readFileSync(blocksUri.fsPath, 'utf8'), {
+      currentDocument: blocksUri
+    });
+    assert.match(html, /<span id="\^para-1" class="markdown-loom-blockref"><\/span>/);
+    // The literal `^para-1` should no longer appear in the rendered paragraph.
+    assert.doesNotMatch(html, /\^para-1<\/p>/);
+  });
+
+  test('block ref: anchor span is injected for list items', () => {
+    const blocksUri = uriFor('rootA', 'Blocks.md');
+    const md = new MarkdownIt();
+    new WikiLinkRenderer(index).extendMarkdownIt(md);
+    const html = md.render(fs.readFileSync(blocksUri.fsPath, 'utf8'), {
+      currentDocument: blocksUri
+    });
+    assert.match(html, /<span id="\^list-1" class="markdown-loom-blockref"><\/span>/);
+    assert.doesNotMatch(html, /\^list-1<\/li>/);
+  });
+
+  test('block ref to missing id still resolves the file (fallback)', () => {
+    const html = renderWith(uriFor('rootA', 'Index.md'), '[[Blocks#^no-such]]');
+    // File resolves; href fragment is the literal id even if unmatched.
+    assert.match(html, /href="\.\/Blocks\.md#%5Eno-such"/);
   });
 
   test('section ref to existing note with non-existent heading resolves to the file (missing-heading fallback)', () => {

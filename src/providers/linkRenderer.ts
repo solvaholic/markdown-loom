@@ -15,7 +15,34 @@ const WIKILINK_AT_START = /^\[\[([^\]\n]+)\]\]/;
 
 const WIKI_TARGET_ATTR = 'data-wikilink';
 const WIKI_SECTION_ATTR = 'data-wikilink-section';
+const WIKI_BLOCKREF_ATTR = 'data-wikilink-blockref';
 const RESOLVED_VIA_ATTR = 'data-resolved-via';
+
+function isBlockRef(section: string | null | undefined): boolean {
+  return typeof section === 'string' && section.startsWith('^');
+}
+
+function blockRefId(section: string): string {
+  return section.startsWith('^') ? section.slice(1) : section;
+}
+
+function encodeFragment(fragment: string): string {
+  // Encode each char that isn't URL-safe in a fragment. `^` is not in the
+  // RFC 3986 fragment grammar (pchar / "/" / "?"), so percent-encode it.
+  return encodeURIComponent(fragment);
+}
+
+function escapeHtmlAttr(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+function escapeRegex(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
 
 export class WikiLinkRenderer {
   constructor(private readonly index?: NoteIndex) {}
@@ -64,6 +91,9 @@ export class WikiLinkRenderer {
         ];
         if (parsed.section) {
           attrs.push([WIKI_SECTION_ATTR, parsed.section]);
+          if (isBlockRef(parsed.section)) {
+            attrs.push([WIKI_BLOCKREF_ATTR, '1']);
+          }
         }
         const tokenOpen = state.push('link_open', 'a', 1);
         tokenOpen.attrs = attrs;
@@ -94,6 +124,58 @@ export class WikiLinkRenderer {
     };
     md.renderer.rules.link_open = wikiRule;
 
+    // Inject anchor span(s) at the source line of each indexed block id,
+    // and strip the literal trailing `^id` from the visible text. Runs once
+    // per render after inline tokenization, so we have access to env (and
+    // therefore the source URI) and to the inline children we'll modify.
+    // See docs/SPEC.md "Section references (Phase B: block IDs)".
+    const indexForCore = this.index;
+    md.core.ruler.after('inline', 'wikilink-blockids', (state) => {
+      if (!indexForCore) {
+        return;
+      }
+      const sourceUri = readSourceUri(state.env);
+      if (!sourceUri) {
+        return;
+      }
+      const blockIds = indexForCore.getBlockIds(sourceUri);
+      if (blockIds.length === 0) {
+        return;
+      }
+      const TokenCtor = state.Token;
+      for (const token of state.tokens) {
+        if (token.type !== 'inline' || !token.map) {
+          continue;
+        }
+        const [startLine, endLine] = token.map;
+        const matches = blockIds.filter(
+          (b) => b.line >= startLine && b.line < endLine
+        );
+        if (matches.length === 0) {
+          continue;
+        }
+        const anchors = matches.map((b) => {
+          const anchor = new TokenCtor('html_inline', '', 0);
+          anchor.content = `<span id="^${escapeHtmlAttr(b.id)}" class="markdown-loom-blockref"></span>`;
+          return anchor;
+        });
+        token.children = [...anchors, ...(token.children ?? [])];
+        for (const m of matches) {
+          const stripRe = new RegExp(`\\s?\\^${escapeRegex(m.id)}\\s*$`);
+          token.content = token.content.replace(stripRe, '');
+          if (token.children) {
+            for (let i = token.children.length - 1; i >= 0; i -= 1) {
+              const child = token.children[i];
+              if (child.type === 'text' && stripRe.test(child.content)) {
+                child.content = child.content.replace(stripRe, '');
+                break;
+              }
+            }
+          }
+        }
+      }
+    });
+
     return md;
   }
 }
@@ -122,10 +204,18 @@ function applyWikiLinkResolution(
     return;
   }
   const base = relativeHref(sourceUri, resolved);
-  // Append the section slug fragment so VS Code's preview scrolls to the
-  // heading. The slug algorithm must agree with what VS Code's preview uses
-  // (see slugifyHeading in noteIndex.ts and docs/SPEC.md "Heading slug").
-  const href = section ? `${base}#${slugifyHeading(section)}` : base;
+  // Build the fragment. For heading refs use the heading slug; for block
+  // refs use the literal id (with a leading `^`), percent-encoded for the
+  // URL. VS Code's preview decodes the fragment before getElementById, so
+  // the injected `<span id="^abc">` matches.
+  let href = base;
+  if (section) {
+    if (isBlockRef(section)) {
+      href = `${base}#${encodeFragment('^' + blockRefId(section))}`;
+    } else {
+      href = `${base}#${slugifyHeading(section)}`;
+    }
+  }
   token.attrSet('href', href);
   // VS Code's markdown-language-features wraps our extendMarkdownIt with its
   // own link_open rule that runs FIRST and copies the (then-fallback) `href`
@@ -184,7 +274,13 @@ function readSourceUri(env: unknown): vscode.Uri | null {
 function encodeFallback(target: string, section?: string | null): string {
   const withExt = /\.md$/i.test(target) ? target : `${target}.md`;
   const base = encodePath(withExt);
-  return section ? `${base}#${slugifyHeading(section)}` : base;
+  if (!section) {
+    return base;
+  }
+  if (isBlockRef(section)) {
+    return `${base}#${encodeFragment('^' + blockRefId(section))}`;
+  }
+  return `${base}#${slugifyHeading(section)}`;
 }
 
 function encodePath(p: string): string {
