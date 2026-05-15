@@ -474,6 +474,30 @@ export class NoteIndex implements vscode.Disposable {
     return all;
   }
 
+  /**
+   * Return every (sourceUri, links) pair where at least one link's rawTarget
+   * matches `basename` (case-insensitive). Used by the rename participant to
+   * find all inbound wikilinks to a given note.
+   */
+  getLinksTo(basename: string): { sourceUri: vscode.Uri; links: RawLink[] }[] {
+    const targetLower = basename.toLowerCase();
+    const results: { sourceUri: vscode.Uri; links: RawLink[] }[] = [];
+    for (const [key, allLinks] of this.sourceLinks) {
+      const matching = allLinks.filter(
+        (l) => l.rawTarget.toLowerCase() === targetLower
+      );
+      if (matching.length === 0) {
+        continue;
+      }
+      const note = this.notes.get(key);
+      if (!note) {
+        continue;
+      }
+      results.push({ sourceUri: note.uri, links: matching });
+    }
+    return results;
+  }
+
   /** Return all indexed headings for the given note URI. */
   getHeadings(targetUri: vscode.Uri): HeadingInfo[] {
     return this.headings.get(uriKey(targetUri)) ?? [];

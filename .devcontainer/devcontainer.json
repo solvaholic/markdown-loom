@@ -1,6 +1,10 @@
 {
   "name": "markdown-loom",
   "image": "mcr.microsoft.com/devcontainers/typescript-node:1-22-bookworm",
+  "features": {
+    "ghcr.io/devcontainers/features/common-utils:2": {},
+    "ghcr.io/devcontainers/features/github-cli:1": {}
+  },
   "customizations": {
     "vscode": {
       "extensions": [
@@ -19,5 +23,5 @@
     }
   },
   "remoteUser": "node",
-  "postCreateCommand": "corepack enable || true && npm install -g @github/copilot"
+  "postCreateCommand": "sudo apt-get update -qq && sudo apt-get install -y -qq libasound2 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 libgbm1 libgtk-3-0 libnspr4 libnss3 libxshmfence1 xvfb ripgrep && corepack enable || true && npm install -g @github/copilot"
 }

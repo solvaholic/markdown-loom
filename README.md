@@ -17,11 +17,11 @@ Shipped:
 - [x] Wiki-style linking (`[[Note]]`, `[[Note|Alias]]`)
 - [x] Backlinks panel
 - [x] Task toggle with auto-stamped done date (frozen, see below)
+- [x] Section references (`[[Note#Heading]]`) in editor and preview
 
 Planned (in priority order):
 
-- [ ] Section references (`[[Note#Heading]]`) in editor and preview
-- [ ] Link rewrite on file rename (via VS Code's rename hook)
+- [x] Link rewrite on file rename (via VS Code's rename hook)
 - [ ] Block references (`[[Note#^blockid]]`)
 - [ ] Wikilinks to non-markdown files (`[[Some File.pdf]]`)
 - [ ] Drag-and-drop file insertion (Finder → attachment + wikilink)

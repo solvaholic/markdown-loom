@@ -8,6 +8,7 @@ import { createWikiLinkCommandHandler } from './providers/linkCommands';
 import { WikiLinkRenderer } from './providers/linkRenderer';
 import { BacklinksProvider } from './providers/backlinksProvider';
 import { createToggleTaskCommand } from './tasks/toggleCommand';
+import { createRenameParticipant } from './providers/linkRenameHandler';
 import { IndexStatusBar } from './status/indexStatusBar';
 import { createShowIndexStatusCommand } from './commands/showIndexStatus';
 
@@ -65,6 +66,7 @@ export function activate(
   );
 
   context.subscriptions.push(new IndexStatusBar(noteIndex));
+  context.subscriptions.push(createRenameParticipant(noteIndex));
 
   const showIndexStatus = createShowIndexStatusCommand(noteIndex);
   context.subscriptions.push(showIndexStatus);
