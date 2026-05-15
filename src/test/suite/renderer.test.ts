@@ -292,6 +292,20 @@ suite('WikiLink Preview Renderer (NoteIndex-aware)', () => {
     assert.match(html, /data-wikilink-blockref="1"/);
   });
 
+  test('block ref: link display defaults to bare note name (no #^id noise)', () => {
+    const html = renderWith(uriFor('rootA', 'Index.md'), '[[Blocks#^para-1]]');
+    assert.match(html, />Blocks<\/a>/);
+    assert.doesNotMatch(html, />Blocks#\^para-1<\/a>/);
+  });
+
+  test('block ref with alias: alias still wins over the default display', () => {
+    const html = renderWith(
+      uriFor('rootA', 'Index.md'),
+      '[[Blocks#^para-1|See the first paragraph]]'
+    );
+    assert.match(html, />See the first paragraph<\/a>/);
+  });
+
   test('block ref: anchor span is injected at the source line of the block id', () => {
     // Render Blocks.md itself with its real on-disk content so line numbers
     // align with what the index extracted.

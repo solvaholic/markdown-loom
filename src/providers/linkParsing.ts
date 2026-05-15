@@ -49,10 +49,21 @@ export function parseWikiLinkBody(
   }
 
   const aliasRaw = pipeIdx === -1 ? '' : body.slice(pipeIdx + 1).trim();
-  // When no alias is given, display the full target part (note#heading or just
-  // the note name). Build it explicitly so we never emit a trailing bare `#`
-  // (e.g. for the degenerate `[[Note#]]` form where section parsed to null).
-  const display = aliasRaw || (section ? `${noteName}#${section}` : noteName);
+  // When no alias is given, the default display text is:
+  //   - bare note name for plain `[[Note]]` and for block refs `[[Note#^id]]`
+  //     (the literal `^id` adds visual noise and tells the reader nothing
+  //     useful; see docs/SPEC.md "Section references (Phase B: block IDs)").
+  //   - `Note#Heading` for heading refs, which carries useful context.
+  // Build it explicitly so we never emit a trailing bare `#` (e.g. for the
+  // degenerate `[[Note#]]` form where section parsed to null).
+  let display: string;
+  if (aliasRaw) {
+    display = aliasRaw;
+  } else if (section && !section.startsWith('^')) {
+    display = `${noteName}#${section}`;
+  } else {
+    display = noteName;
+  }
   return { target: noteName, section, display };
 }
 

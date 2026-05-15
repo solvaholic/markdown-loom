@@ -125,58 +125,87 @@ export class WikiLinkRenderer {
     md.renderer.rules.link_open = wikiRule;
 
     // Inject anchor span(s) at the source line of each indexed block id,
-    // and strip the literal trailing `^id` from the visible text. Runs once
-    // per render after inline tokenization, so we have access to env (and
-    // therefore the source URI) and to the inline children we'll modify.
-    // See docs/SPEC.md "Section references (Phase B: block IDs)".
-    const indexForCore = this.index;
-    md.core.ruler.after('inline', 'wikilink-blockids', (state) => {
-      if (!indexForCore) {
-        return;
-      }
-      const sourceUri = readSourceUri(state.env);
-      if (!sourceUri) {
-        return;
-      }
-      const blockIds = indexForCore.getBlockIds(sourceUri);
-      if (blockIds.length === 0) {
-        return;
-      }
-      const TokenCtor = state.Token;
-      for (const token of state.tokens) {
-        if (token.type !== 'inline' || !token.map) {
-          continue;
+    // and strip the literal trailing `^id` from the visible text.
+    //
+    // This MUST run at render time, not at parse/core time, because VS
+    // Code's markdown preview only populates env.currentDocument during
+    // render (see microsoft/vscode extensions/markdown-language-features/
+    //  src/markdownEngine.ts). Wrapping renderer.render gives us a single
+    // pre-render hook where env is fully populated.
+    //
+    // Idempotency: token.meta.loomBlockrefsApplied guards against repeated
+    // mutation if the same token tree is rendered twice.
+    const indexForRender = this.index;
+    const previousRender = md.renderer.render.bind(md.renderer);
+    md.renderer.render = function patchedRender(tokens, options, env) {
+      if (indexForRender) {
+        const sourceUri = readSourceUri(env);
+        if (sourceUri) {
+          injectBlockAnchors(tokens, indexForRender.getBlockIds(sourceUri));
         }
-        const [startLine, endLine] = token.map;
-        const matches = blockIds.filter(
-          (b) => b.line >= startLine && b.line < endLine
-        );
-        if (matches.length === 0) {
-          continue;
-        }
-        const anchors = matches.map((b) => {
-          const anchor = new TokenCtor('html_inline', '', 0);
-          anchor.content = `<span id="^${escapeHtmlAttr(b.id)}" class="markdown-loom-blockref"></span>`;
-          return anchor;
-        });
-        token.children = [...anchors, ...(token.children ?? [])];
-        for (const m of matches) {
-          const stripRe = new RegExp(`\\s?\\^${escapeRegex(m.id)}\\s*$`);
-          token.content = token.content.replace(stripRe, '');
-          if (token.children) {
-            for (let i = token.children.length - 1; i >= 0; i -= 1) {
-              const child = token.children[i];
-              if (child.type === 'text' && stripRe.test(child.content)) {
-                child.content = child.content.replace(stripRe, '');
-                break;
-              }
-            }
+      }
+      return previousRender(tokens, options, env);
+    };
+
+    return md;
+  }
+}
+
+interface MutableMetaToken {
+  type: string;
+  map: [number, number] | null;
+  content: string;
+  children: MutableMetaToken[] | null;
+  meta: { loomBlockrefsApplied?: boolean } | null;
+}
+
+function injectBlockAnchors(
+  tokens: unknown[],
+  blockIds: { id: string; line: number }[]
+): void {
+  if (blockIds.length === 0) {
+    return;
+  }
+  for (const raw of tokens) {
+    const token = raw as MutableMetaToken;
+    if (token.type !== 'inline' || !token.map) {
+      continue;
+    }
+    if (token.meta && token.meta.loomBlockrefsApplied) {
+      continue;
+    }
+    const [startLine, endLine] = token.map;
+    const matches = blockIds.filter(
+      (b) => b.line >= startLine && b.line < endLine
+    );
+    if (matches.length === 0) {
+      continue;
+    }
+    const anchors = matches.map((b) => {
+      const anchor: MutableMetaToken = {
+        type: 'html_inline',
+        map: null,
+        content: `<span id="^${escapeHtmlAttr(b.id)}" class="markdown-loom-blockref"></span>`,
+        children: null,
+        meta: null
+      };
+      return anchor;
+    });
+    token.children = [...anchors, ...(token.children ?? [])];
+    for (const m of matches) {
+      const stripRe = new RegExp(`\\s?\\^${escapeRegex(m.id)}\\s*$`);
+      token.content = token.content.replace(stripRe, '');
+      if (token.children) {
+        for (let i = token.children.length - 1; i >= 0; i -= 1) {
+          const child = token.children[i];
+          if (child.type === 'text' && stripRe.test(child.content)) {
+            child.content = child.content.replace(stripRe, '');
+            break;
           }
         }
       }
-    });
-
-    return md;
+    }
+    token.meta = { ...(token.meta ?? {}), loomBlockrefsApplied: true };
   }
 }
 
