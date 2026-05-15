@@ -222,6 +222,25 @@ Support `[[Note Name#^blockid]]`. Requires injecting anchor markup at
 the referenced block in preview, and indexing block IDs alongside the
 note text. Lower priority than Phase A and rename.
 
+Implementation choices:
+
+- **Block ID syntax**: a trailing `^id` token at end-of-line, preceded
+  by whitespace or start-of-line. Allowed chars are ASCII letters,
+  digits, and hyphen (matches Obsidian).
+- **Navigation granularity**: line-level. The block id line is the
+  jump target; Obsidian's "block as paragraph/list-item span"
+  semantics are a follow-up.
+- **Duplicate ids**: first occurrence in the file wins for navigation;
+  every occurrence still gets an injected anchor in preview.
+- **Preview**: a markdown-it core rule injects
+  `<span id="^id" class="markdown-loom-blockref"></span>` at the
+  inline token whose source map covers the id's line, and strips the
+  literal trailing `^id` from the visible text. The link href uses
+  the literal `#^id` (percent-encoded as `#%5Eid`) — not a slug — so
+  the fragment matches the injected span's id.
+- **Fallback**: a `[[Note#^missing]]` ref navigates to the file with
+  no hard error, matching the missing-heading fallback policy.
+
 ### Wikilinks to non-markdown files
 
 Support `[[Some File.pdf]]`, `[[diagram.png]]`, and similar targets

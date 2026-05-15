@@ -24,12 +24,20 @@ export class WikiLinkDefinitionProvider implements vscode.DefinitionProvider {
       return null;
     }
 
-    // When a section ref is present, navigate to the heading line.
-    // Fall back to line 0 when the heading is not found (no hard error —
-    // per docs/SPEC.md "missing-heading fallback").
-    const line = match.section
-      ? (this.index.findHeadingLine(target, match.section) ?? 0)
-      : 0;
+    // When a section ref is present, navigate to the target line.
+    // - `#^id` → block reference: look up the block id (case-insensitive).
+    // - `#Heading` → heading reference: slug-match against indexed headings.
+    // Fall back to line 0 when not found (no hard error — per docs/SPEC.md
+    // "missing-heading fallback", same policy applied to missing block ids).
+    let line = 0;
+    if (match.section) {
+      if (match.section.startsWith('^')) {
+        const id = match.section.slice(1);
+        line = this.index.findBlockIdLine(target, id) ?? 0;
+      } else {
+        line = this.index.findHeadingLine(target, match.section) ?? 0;
+      }
+    }
 
     return new vscode.Location(target, new vscode.Position(line, 0));
   }

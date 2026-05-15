@@ -1,5 +1,10 @@
 import * as assert from 'assert';
-import { extractWikiLinksFromText, extractHeadingsFromText, slugifyHeading } from '../../index/noteIndex';
+import {
+  extractWikiLinksFromText,
+  extractHeadingsFromText,
+  extractBlockIdsFromText,
+  slugifyHeading
+} from '../../index/noteIndex';
 
 suite('NoteIndex extraction', () => {
   test('finds links across lines (path-prefixed targets are skipped)', () => {
@@ -128,5 +133,68 @@ suite('extractHeadingsFromText', () => {
   test('returns empty array for text with no headings', () => {
     const headings = extractHeadingsFromText('Just some text.\n\nMore text.');
     assert.strictEqual(headings.length, 0);
+  });
+});
+
+suite('extractBlockIdsFromText', () => {
+  test('extracts a trailing ^id on a paragraph line', () => {
+    const ids = extractBlockIdsFromText('Some paragraph. ^abc-123');
+    assert.strictEqual(ids.length, 1);
+    assert.strictEqual(ids[0].id, 'abc-123');
+    assert.strictEqual(ids[0].line, 0);
+  });
+
+  test('extracts ^id from a list item line', () => {
+    const text = '- first item ^one\n- second item';
+    const ids = extractBlockIdsFromText(text);
+    assert.deepStrictEqual(
+      ids.map((b) => [b.id, b.line]),
+      [['one', 0]]
+    );
+  });
+
+  test('extracts multiple ids across the document', () => {
+    const text = ['para a ^a', '', 'para b ^bee-2', '', 'para c'].join('\n');
+    const ids = extractBlockIdsFromText(text);
+    assert.deepStrictEqual(
+      ids.map((b) => [b.id, b.line]),
+      [
+        ['a', 0],
+        ['bee-2', 2]
+      ]
+    );
+  });
+
+  test('skips block ids inside fenced code blocks', () => {
+    const text = ['real ^outside', '```', 'fake ^inside', '```', 'real ^after'].join('\n');
+    const ids = extractBlockIdsFromText(text);
+    assert.deepStrictEqual(
+      ids.map((b) => b.id),
+      ['outside', 'after']
+    );
+  });
+
+  test('does not match a ^ that is not preceded by whitespace', () => {
+    // `foo^bar` is not a block id — it's just text containing a caret.
+    const ids = extractBlockIdsFromText('foo^bar');
+    assert.strictEqual(ids.length, 0);
+  });
+
+  test('does not match a ^id followed by other text on the same line', () => {
+    // Block ids only appear at end-of-line.
+    const ids = extractBlockIdsFromText('text ^abc more text');
+    assert.strictEqual(ids.length, 0);
+  });
+
+  test('allows trailing whitespace after the id', () => {
+    const ids = extractBlockIdsFromText('text ^abc   ');
+    assert.deepStrictEqual(
+      ids.map((b) => b.id),
+      ['abc']
+    );
+  });
+
+  test('returns empty for text without ids', () => {
+    assert.strictEqual(extractBlockIdsFromText('plain prose with no ids').length, 0);
   });
 });

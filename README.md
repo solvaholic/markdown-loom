@@ -18,11 +18,11 @@ Shipped:
 - [x] Backlinks panel
 - [x] Task toggle with auto-stamped done date (frozen, see below)
 - [x] Section references (`[[Note#Heading]]`) in editor and preview
+- [x] Block references (`[[Note#^blockid]]`) in editor and preview
 
 Planned (in priority order):
 
 - [x] Link rewrite on file rename (via VS Code's rename hook)
-- [ ] Block references (`[[Note#^blockid]]`)
 - [ ] Wikilinks to non-markdown files (`[[Some File.pdf]]`)
 - [ ] Drag-and-drop file insertion (Finder → attachment + wikilink)
 - [ ] Configurable click-to-create behavior (prompt / auto / never)
