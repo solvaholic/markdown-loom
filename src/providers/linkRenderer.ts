@@ -301,7 +301,9 @@ function readSourceUri(env: unknown): vscode.Uri | null {
 }
 
 function encodeFallback(target: string, section?: string | null): string {
-  const withExt = /\.md$/i.test(target) ? target : `${target}.md`;
+  // If the target already carries an extension (e.g. `.pdf`, `.png`), use it
+  // as-is; plain note names without an extension get `.md` appended.
+  const withExt = /\.[a-zA-Z0-9]+$/.test(target) ? target : `${target}.md`;
   const base = encodePath(withExt);
   if (!section) {
     return base;

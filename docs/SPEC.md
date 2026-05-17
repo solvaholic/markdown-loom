@@ -113,8 +113,8 @@ Legal forms (planned, see [Roadmap](#roadmap)):
 - `[[Note Name#^blockid]]` - link to an Obsidian-style block
   reference. Phase B.
 - `[[Some File.pdf]]` - link to a non-`.md` attachment by full
-  basename (extension included). See
-  ["Wikilinks to non-markdown files"](#wikilinks-to-non-markdown-files).
+  basename (extension included). Shipped; see
+  [`markdownLoom.attachmentExtensions`](#configuration-schema).
 
 Not legal (treated as plain text, not as wikilinks):
 
@@ -392,6 +392,12 @@ markdown-loom/
     "type": "boolean",
     "default": true,
     "description": "Automatically add a done date when toggling a task to done."
+  },
+  "markdownLoom.attachmentExtensions": {
+    "type": "array",
+    "items": { "type": "string" },
+    "default": ["pdf", "png", "jpg", "jpeg", "gif", "svg", "webp", "mp4", "mov", "webm", "mp3", "m4a", "wav"],
+    "description": "File extensions (without leading dot) indexed for non-.md wikilink resolution. A [[Name.pdf]] wikilink resolves to any workspace file named Name.pdf. Changing this setting triggers an index rebuild."
   }
 }
 ```
@@ -402,8 +408,6 @@ no longer planned.
 
 Planned settings (see [Roadmap](#roadmap)):
 
-- `markdownLoom.attachmentExtensions` (string array) - allowlist of
-  file extensions indexed for non-`.md` wikilink resolution.
 - `markdownLoom.attachmentsFolder` (`sameFolderAsActive` |
   `workspaceRoot` | `customPath`) - destination policy for
   drag-and-drop attachments.

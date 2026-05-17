@@ -349,4 +349,55 @@ suite('WikiLink Preview Renderer (NoteIndex-aware)', () => {
     // Notes.md exists → resolved href, not fallback; fragment is still present.
     assert.match(html, /href="\.\/Notes\.md#nosuchheadingxyz"/);
   });
+
+  test('attachment target [[Some File.pdf]] resolves to the PDF without appending .md', () => {
+    const html = renderWith(uriFor('rootA', 'Index.md'), '[[Some File.pdf]]');
+    assert.match(html, /href="\.\/Some%20File\.pdf"/);
+    assert.doesNotMatch(html, /\.pdf\.md/);
+  });
+
+  test('attachment target [[diagram.png]] resolves correctly', () => {
+    const html = renderWith(uriFor('rootA', 'Index.md'), '[[diagram.png]]');
+    assert.match(html, /href="\.\/diagram\.png"/);
+  });
+
+  test('attachment target: data-href also uses the resolved attachment path', () => {
+    const md = new MarkdownIt();
+    new WikiLinkRenderer(index).extendMarkdownIt(md);
+    const previous = md.renderer.rules.link_open;
+    md.renderer.rules.link_open = (tokens, idx, options, env, self) => {
+      const token = tokens[idx];
+      const href = token.attrGet('href');
+      if (typeof href === 'string') {
+        token.attrSet('data-href', href);
+      }
+      if (previous) {
+        return previous(tokens, idx, options, env, self);
+      }
+      return self.renderToken(tokens, idx, options);
+    };
+    const html = md.render('[[Some File.pdf]]', {
+      currentDocument: uriFor('rootA', 'Index.md')
+    });
+    assert.match(html, /data-href="\.\/Some%20File\.pdf"/);
+  });
+});
+
+suite('WikiLink Preview Renderer (attachment fallback, no index)', () => {
+  function render(input: string): string {
+    const md = new MarkdownIt();
+    new WikiLinkRenderer().extendMarkdownIt(md);
+    return md.render(input);
+  }
+
+  test('fallback href for attachment target does not add .md', () => {
+    const html = render('[[Some File.pdf]]');
+    assert.match(html, /href="Some%20File\.pdf"/);
+    assert.doesNotMatch(html, /\.pdf\.md/);
+  });
+
+  test('fallback href for plain note name still adds .md', () => {
+    const html = render('[[My Note]]');
+    assert.match(html, /href="My%20Note\.md"/);
+  });
 });

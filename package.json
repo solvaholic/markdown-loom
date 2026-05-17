@@ -120,6 +120,14 @@
           "default": 10,
           "minimum": 1,
           "description": "Number of indexed note paths shown as a sample in the 'Show Index Status' command output."
+        },
+        "markdownLoom.attachmentExtensions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": ["pdf", "png", "jpg", "jpeg", "gif", "svg", "webp", "mp4", "mov", "webm", "mp3", "m4a", "wav"],
+          "markdownDescription": "File extensions (without leading dot) that are indexed for non-`.md` wikilink resolution. A `[[Name.pdf]]` wikilink resolves to any file named `Name.pdf` in the workspace. Changing this setting triggers an index rebuild."
         }
       }
     }
