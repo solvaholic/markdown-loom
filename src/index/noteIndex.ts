@@ -178,9 +178,21 @@ export function extractWikiLinksFromText(text: string): RawLink[] {
   return links;
 }
 
+/**
+ * Default attachment extensions indexed for non-`.md` wikilink resolution.
+ * Each entry is a lowercase extension without the leading dot.
+ */
+export const DEFAULT_ATTACHMENT_EXTENSIONS: readonly string[] = [
+  'pdf', 'png', 'jpg', 'jpeg', 'gif', 'svg', 'webp',
+  'mp4', 'mov', 'webm', 'mp3', 'm4a', 'wav'
+];
+
 export class NoteIndex implements vscode.Disposable {
   private readonly notes = new Map<string, NoteInfo>();
   private readonly basenameToKeys = new Map<string, string[]>();
+  // Parallel maps for non-markdown attachment files.
+  private readonly attachmentNotes = new Map<string, NoteInfo>();
+  private readonly attachmentByBasename = new Map<string, string[]>();
   private readonly sourceLinks = new Map<string, RawLink[]>();
   private readonly headings = new Map<string, HeadingInfo[]>();
   private readonly blockIds = new Map<string, BlockIdInfo[]>();
@@ -195,19 +207,32 @@ export class NoteIndex implements vscode.Disposable {
   private generation = 0;
   private includeWorkspaceFolder = false;
   private _lastRebuildAt: Date | null = null;
+  /** Current configured attachment extensions (lowercase, no leading dot). */
+  private attachmentExtensions: Set<string> = new Set(DEFAULT_ATTACHMENT_EXTENSIONS);
 
   constructor() {
     const watcher = vscode.workspace.createFileSystemWatcher('**/*.md');
+    const attachmentGlob = `**/*.{${DEFAULT_ATTACHMENT_EXTENSIONS.join(',')}}`;
+    const attachmentWatcher = vscode.workspace.createFileSystemWatcher(attachmentGlob);
     this.disposables.push(
       watcher,
       watcher.onDidCreate((uri) => this.handleFileTouched(uri, true)),
       watcher.onDidChange((uri) => this.handleFileTouched(uri, false)),
       watcher.onDidDelete((uri) => this.handleFileDeleted(uri)),
+      attachmentWatcher,
+      attachmentWatcher.onDidCreate((uri) => this.handleAttachmentTouched(uri, true)),
+      attachmentWatcher.onDidChange((uri) => this.handleAttachmentTouched(uri, false)),
+      attachmentWatcher.onDidDelete((uri) => this.handleAttachmentDeleted(uri)),
       vscode.workspace.onDidRenameFiles((e) => this.handleRenames(e.files)),
       vscode.workspace.onDidChangeWorkspaceFolders(() => this.scheduleRebuild()),
       vscode.workspace.onDidSaveTextDocument((doc) => {
         if (doc.languageId === 'markdown') {
           this.handleFileTouched(doc.uri, false, doc.getText());
+        }
+      }),
+      vscode.workspace.onDidChangeConfiguration((e) => {
+        if (e.affectsConfiguration('markdownLoom.attachmentExtensions')) {
+          this.scheduleRebuild();
         }
       })
     );
@@ -237,21 +262,37 @@ export class NoteIndex implements vscode.Disposable {
   private async rebuild(myGeneration: number): Promise<void> {
     this.includeWorkspaceFolder =
       (vscode.workspace.workspaceFolders?.length ?? 0) > 1;
-    const files = await vscode.workspace.findFiles('**/*.md');
+    // Read configured attachment extensions (strip any leading dots, lowercase).
+    const configuredExts = vscode.workspace
+      .getConfiguration('markdownLoom')
+      .get<string[]>('attachmentExtensions', Array.from(DEFAULT_ATTACHMENT_EXTENSIONS));
+    this.attachmentExtensions = new Set(
+      configuredExts.map((e) => e.toLowerCase().replace(/^\./, ''))
+    );
+    const attachmentGlob = buildAttachmentGlob(this.attachmentExtensions);
+    const [mdFiles, attachmentFiles] = await Promise.all([
+      vscode.workspace.findFiles('**/*.md'),
+      attachmentGlob ? vscode.workspace.findFiles(attachmentGlob) : Promise.resolve([])
+    ]);
     if (myGeneration !== this.generation) {
       return;
     }
     this.notes.clear();
     this.basenameToKeys.clear();
+    this.attachmentNotes.clear();
+    this.attachmentByBasename.clear();
     this.sourceLinks.clear();
     this.headings.clear();
     this.blockIds.clear();
     this.backlinks.clear();
-    for (const file of files) {
+    for (const file of mdFiles) {
       this.registerNote(file);
     }
+    for (const file of attachmentFiles) {
+      this.registerAttachment(file);
+    }
     await Promise.all(
-      files.map(async (file) => {
+      mdFiles.map(async (file) => {
         if (myGeneration !== this.generation) {
           return;
         }
@@ -358,6 +399,77 @@ export class NoteIndex implements vscode.Disposable {
     }
   }
 
+  private registerAttachment(uri: vscode.Uri): void {
+    const relativePath = this.getRelativePath(uri);
+    // For attachments we keep the full basename including extension.
+    const basename = relativePath.split('/').pop() ?? relativePath;
+    const key = uriKey(uri);
+    this.attachmentNotes.set(key, {
+      uri,
+      basename,
+      workspaceRelativePath: relativePath
+    });
+    const basenameLower = basename.toLowerCase();
+    const list = this.attachmentByBasename.get(basenameLower) ?? [];
+    list.push(key);
+    this.attachmentByBasename.set(basenameLower, list);
+  }
+
+  private unregisterAttachment(key: string): void {
+    const note = this.attachmentNotes.get(key);
+    if (!note) {
+      return;
+    }
+    this.attachmentNotes.delete(key);
+    const basenameLower = note.basename.toLowerCase();
+    const list = this.attachmentByBasename.get(basenameLower);
+    if (list) {
+      const filtered = list.filter((k) => k !== key);
+      if (filtered.length) {
+        this.attachmentByBasename.set(basenameLower, filtered);
+      } else {
+        this.attachmentByBasename.delete(basenameLower);
+      }
+    }
+  }
+
+  private async handleAttachmentTouched(
+    uri: vscode.Uri,
+    isCreate: boolean
+  ): Promise<void> {
+    if (!this.buildPromise) {
+      this.scheduleRebuild();
+      return;
+    }
+    await this.buildPromise;
+    const ext = getUriExtension(uri);
+    if (!this.attachmentExtensions.has(ext)) {
+      return;
+    }
+    const key = uriKey(uri);
+    if (isCreate || !this.attachmentNotes.has(key)) {
+      this.registerAttachment(uri);
+      this.rebuildBacklinks();
+    }
+    this._onDidChangeIndex.fire();
+  }
+
+  private async handleAttachmentDeleted(uri: vscode.Uri): Promise<void> {
+    if (!this.buildPromise) {
+      this.scheduleRebuild();
+      return;
+    }
+    await this.buildPromise;
+    const key = uriKey(uri);
+    if (!this.attachmentNotes.has(key)) {
+      return;
+    }
+    this.unregisterAttachment(key);
+    this.removeSourceFromBacklinks(key);
+    this.rebuildBacklinks();
+    this._onDidChangeIndex.fire();
+  }
+
   private async handleFileTouched(
     uri: vscode.Uri,
     isCreate: boolean,
@@ -418,15 +530,21 @@ export class NoteIndex implements vscode.Disposable {
   ): Promise<void> {
     let touched = false;
     for (const { oldUri, newUri } of files) {
-      if (!isMarkdown(oldUri) && !isMarkdown(newUri)) {
+      const oldIsAttachment = this.isAttachmentUri(oldUri);
+      const newIsAttachment = this.isAttachmentUri(newUri);
+      if (!isMarkdown(oldUri) && !isMarkdown(newUri) && !oldIsAttachment && !newIsAttachment) {
         continue;
       }
       touched = true;
       if (isMarkdown(oldUri)) {
         await this.handleFileDeleted(oldUri);
+      } else if (oldIsAttachment) {
+        await this.handleAttachmentDeleted(oldUri);
       }
       if (isMarkdown(newUri)) {
         await this.handleFileTouched(newUri, true);
+      } else if (newIsAttachment) {
+        await this.handleAttachmentTouched(newUri, true);
       }
     }
     if (touched) {
@@ -435,6 +553,19 @@ export class NoteIndex implements vscode.Disposable {
   }
 
   resolve(target: string, fromUri: vscode.Uri): vscode.Uri | null {
+    const ext = getTargetExtension(target);
+    if (ext && ext !== 'md' && this.attachmentExtensions.has(ext)) {
+      // Attachment target: look up by full lowercased basename.
+      const targetLower = normalizeAttachmentTarget(target);
+      if (!targetLower) {
+        return null;
+      }
+      const candidateKeys = this.attachmentByBasename.get(targetLower);
+      if (!candidateKeys || candidateKeys.length === 0) {
+        return null;
+      }
+      return this.pickBestCandidateFromMap(candidateKeys, fromUri, this.attachmentNotes);
+    }
     const targetLower = normalizeTarget(target);
     if (!targetLower) {
       return null;
@@ -443,7 +574,7 @@ export class NoteIndex implements vscode.Disposable {
     if (!candidateKeys || candidateKeys.length === 0) {
       return null;
     }
-    return this.pickBestCandidate(candidateKeys, fromUri);
+    return this.pickBestCandidateFromMap(candidateKeys, fromUri, this.notes);
   }
 
   /**
@@ -456,30 +587,43 @@ export class NoteIndex implements vscode.Disposable {
     target: string,
     fromUri: vscode.Uri
   ): { uri: vscode.Uri; ambiguous: boolean }[] {
+    const ext = getTargetExtension(target);
+    if (ext && ext !== 'md' && this.attachmentExtensions.has(ext)) {
+      const targetLower = normalizeAttachmentTarget(target);
+      if (!targetLower) {
+        return [];
+      }
+      const basenameKeys = this.attachmentByBasename.get(targetLower);
+      if (basenameKeys && basenameKeys.length > 0) {
+        return this.expandCandidatesFromMap(basenameKeys, fromUri, this.attachmentNotes);
+      }
+      return [];
+    }
     const targetLower = normalizeTarget(target);
     if (!targetLower) {
       return [];
     }
     const basenameKeys = this.basenameToKeys.get(targetLower);
     if (basenameKeys && basenameKeys.length > 0) {
-      return this.expandCandidates(basenameKeys, fromUri);
+      return this.expandCandidatesFromMap(basenameKeys, fromUri, this.notes);
     }
     return [];
   }
 
-  private expandCandidates(
+  private expandCandidatesFromMap(
     keys: string[],
-    fromUri: vscode.Uri
+    fromUri: vscode.Uri,
+    noteMap: Map<string, NoteInfo>
   ): { uri: vscode.Uri; ambiguous: boolean }[] {
     if (keys.length === 1) {
-      const uri = this.notes.get(keys[0])?.uri;
+      const uri = noteMap.get(keys[0])?.uri;
       return uri ? [{ uri, ambiguous: false }] : [];
     }
-    const winner = this.pickBestCandidate(keys, fromUri);
+    const winner = this.pickBestCandidateFromMap(keys, fromUri, noteMap);
     const winnerKey = winner ? uriKey(winner) : null;
     const out: { uri: vscode.Uri; ambiguous: boolean }[] = [];
     for (const key of keys) {
-      const uri = this.notes.get(key)?.uri;
+      const uri = noteMap.get(key)?.uri;
       if (!uri) {
         continue;
       }
@@ -488,19 +632,20 @@ export class NoteIndex implements vscode.Disposable {
     return out;
   }
 
-  private pickBestCandidate(
+  private pickBestCandidateFromMap(
     candidateKeys: string[],
-    fromUri: vscode.Uri
+    fromUri: vscode.Uri,
+    noteMap: Map<string, NoteInfo>
   ): vscode.Uri | null {
     if (candidateKeys.length === 1) {
-      return this.notes.get(candidateKeys[0])?.uri ?? null;
+      return noteMap.get(candidateKeys[0])?.uri ?? null;
     }
     const currentFolder = vscode.workspace.getWorkspaceFolder(fromUri);
     const currentPrefix = currentFolder ? `${currentFolder.name}/`.toLowerCase() : '';
     let best: string | null = null;
     let bestPreferred = false;
     for (const key of candidateKeys) {
-      const note = this.notes.get(key);
+      const note = noteMap.get(key);
       if (!note) {
         continue;
       }
@@ -512,11 +657,17 @@ export class NoteIndex implements vscode.Disposable {
         bestPreferred = preferred;
       }
     }
-    return best ? this.notes.get(best)?.uri ?? null : null;
+    return best ? noteMap.get(best)?.uri ?? null : null;
   }
 
   getNotes(): NoteInfo[] {
     return Array.from(this.notes.values());
+  }
+
+  /** Returns true if the URI is indexed — either as a markdown note or an attachment. */
+  isIndexed(uri: vscode.Uri): boolean {
+    const key = uriKey(uri);
+    return this.notes.has(key) || this.attachmentNotes.has(key);
   }
 
   get lastRebuildAt(): Date | null {
@@ -617,6 +768,11 @@ export class NoteIndex implements vscode.Disposable {
     return this.includeWorkspaceFolder;
   }
 
+  private isAttachmentUri(uri: vscode.Uri): boolean {
+    const ext = getUriExtension(uri);
+    return !!ext && this.attachmentExtensions.has(ext);
+  }
+
   private getRelativePath(uri: vscode.Uri): string {
     const workspaceFolder = vscode.workspace.getWorkspaceFolder(uri);
     if (!workspaceFolder) {
@@ -628,6 +784,54 @@ export class NoteIndex implements vscode.Disposable {
 
 function isMarkdown(uri: vscode.Uri): boolean {
   return /\.md$/i.test(uri.fsPath);
+}
+
+/** Return the lowercased extension (without dot) of a URI, or '' if none. */
+function getUriExtension(uri: vscode.Uri): string {
+  const basename = uri.fsPath.split(/[/\\]/).pop() ?? '';
+  const dotIdx = basename.lastIndexOf('.');
+  return dotIdx === -1 ? '' : basename.slice(dotIdx + 1).toLowerCase();
+}
+
+/**
+ * Return the lowercased extension (without dot) of the note-basename part of
+ * a wikilink target (before any `|` alias), or null when the target has no
+ * extension.  Does NOT strip the alias — call before alias removal.
+ */
+function getTargetExtension(target: string): string | null {
+  const pipeIdx = target.indexOf('|');
+  const head = (pipeIdx === -1 ? target : target.slice(0, pipeIdx)).trim();
+  const dotIdx = head.lastIndexOf('.');
+  if (dotIdx === -1) {
+    return null;
+  }
+  return head.slice(dotIdx + 1).toLowerCase();
+}
+
+/**
+ * Normalize a wikilink target pointing at a non-markdown attachment:
+ * strip alias, lowercase the full basename (including extension). Returns null
+ * if the target is empty or contains a path separator.
+ */
+function normalizeAttachmentTarget(target: string): string | null {
+  const pipeIdx = target.indexOf('|');
+  const head = (pipeIdx === -1 ? target : target.slice(0, pipeIdx)).trim();
+  if (!head || head.includes('/') || head.includes('\\')) {
+    return null;
+  }
+  return head.toLowerCase();
+}
+
+/**
+ * Build a glob pattern matching files with the given extensions, or null when
+ * the extension set is empty.
+ */
+function buildAttachmentGlob(extensions: Set<string>): string | null {
+  if (extensions.size === 0) {
+    return null;
+  }
+  const exts = Array.from(extensions).join(',');
+  return extensions.size === 1 ? `**/*.${exts}` : `**/*.{${exts}}`;
 }
 
 /**

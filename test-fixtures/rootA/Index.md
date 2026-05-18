@@ -7,3 +7,4 @@ This file links to:
 - [[Nested]]
 - [[Sibling]]
 - [[Foo|Local Foo]]
+- [[Some File.pdf]]

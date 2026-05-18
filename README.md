@@ -106,6 +106,7 @@ dependency.
 | `markdownLoom.wikiLinkStyle` | `name` | Reserved for future use. `[[` completion always inserts the note basename. |
 | `markdownLoom.taskDateFormat` | `YYYY-MM-DD` | Date format for the auto-stamped done date on the (frozen) task toggle. |
 | `markdownLoom.autoAddDoneDate` | `true` | Automatically append `✅ YYYY-MM-DD` when toggling a task done. |
+| `markdownLoom.attachmentExtensions` | `["pdf","png","jpg","jpeg","gif","svg","webp","mp4","mov","webm","mp3","m4a","wav"]` | File extensions (without leading dot) indexed for non-`.md` wikilink resolution. `[[diagram.png]]` resolves to any workspace file named `diagram.png`. Changing this setting triggers an index rebuild. |
 
 ## Keyboard shortcuts
 

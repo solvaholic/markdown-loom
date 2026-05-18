@@ -66,12 +66,15 @@ export class BacklinksProvider
   private refresh(): void {
     const editor = vscode.window.activeTextEditor;
     const doc = editor?.document;
-    if (!doc || doc.languageId !== 'markdown' || doc.uri.scheme !== 'file') {
+    const isVaultFile =
+      doc?.uri.scheme === 'file' &&
+      (doc.languageId === 'markdown' || this.index.isIndexed(doc.uri));
+    if (!isVaultFile) {
       this.cached = { activeKey: null, matches: [] };
     } else {
       this.cached = {
-        activeKey: uriKey(doc.uri),
-        matches: this.index.getBacklinks(doc.uri)
+        activeKey: uriKey(doc!.uri),
+        matches: this.index.getBacklinks(doc!.uri)
       };
     }
     this._onDidChangeTreeData.fire();
