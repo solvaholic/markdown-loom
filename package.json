@@ -121,6 +121,21 @@
           "minimum": 1,
           "description": "Number of indexed note paths shown as a sample in the 'Show Index Status' command output."
         },
+        "markdownLoom.createMissingNoteOnClick": {
+          "type": "string",
+          "enum": [
+            "prompt",
+            "auto",
+            "never"
+          ],
+          "enumDescriptions": [
+            "Ask for confirmation before creating the missing note (current behavior).",
+            "Create the missing note silently and open it.",
+            "Do nothing; leave the missing target missing (no toast, no file)."
+          ],
+          "default": "prompt",
+          "markdownDescription": "Behavior when clicking a `[[wikilink]]` to a missing note. Only applies to `.md` targets; non-`.md` (attachment) wikilinks are never auto-created."
+        },
         "markdownLoom.attachmentExtensions": {
           "type": "array",
           "items": {
