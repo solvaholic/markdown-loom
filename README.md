@@ -25,7 +25,7 @@ Planned (in priority order):
 - [x] Link rewrite on file rename (via VS Code's rename hook)
 - [ ] Wikilinks to non-markdown files (`[[Some File.pdf]]`)
 - [ ] Drag-and-drop file insertion (Finder → attachment + wikilink)
-- [ ] Configurable click-to-create behavior (prompt / auto / never)
+- [x] Configurable click-to-create behavior (prompt / auto / never)
 - [ ] Configurable new-note location
 
 The Phase 2 task query DSL and "Create task" command previously listed
@@ -107,6 +107,7 @@ dependency.
 | `markdownLoom.taskDateFormat` | `YYYY-MM-DD` | Date format for the auto-stamped done date on the (frozen) task toggle. |
 | `markdownLoom.autoAddDoneDate` | `true` | Automatically append `✅ YYYY-MM-DD` when toggling a task done. |
 | `markdownLoom.attachmentExtensions` | `["pdf","png","jpg","jpeg","gif","svg","webp","mp4","mov","webm","mp3","m4a","wav"]` | File extensions (without leading dot) indexed for non-`.md` wikilink resolution. `[[diagram.png]]` resolves to any workspace file named `diagram.png`. Changing this setting triggers an index rebuild. |
+| `markdownLoom.createMissingNoteOnClick` | `prompt` | Behavior when clicking a `[[wikilink]]` to a missing note: `prompt` (ask before creating), `auto` (create silently and open), or `never` (do nothing). Non-`.md` wikilinks are never auto-created. |
 
 ## Keyboard shortcuts
 

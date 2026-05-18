@@ -4,6 +4,18 @@ import { NoteIndex } from '../index/noteIndex';
 import { resolveWikiLinkTarget } from './linkResolution';
 import { parseWikiLinkBody } from './linkParsing';
 
+export type CreateMissingNotePolicy = 'prompt' | 'auto' | 'never';
+
+function getCreateMissingNotePolicy(): CreateMissingNotePolicy {
+  const value = vscode.workspace
+    .getConfiguration('markdownLoom')
+    .get<string>('createMissingNoteOnClick', 'prompt');
+  if (value === 'auto' || value === 'never') {
+    return value;
+  }
+  return 'prompt';
+}
+
 export function createWikiLinkCommandHandler(
   index: NoteIndex
 ): (target?: string) => Promise<void> {
@@ -32,7 +44,11 @@ export function createWikiLinkCommandHandler(
       return;
     }
 
-    const created = await createMissingNote(target, document.uri);
+    const created = await createMissingNote(
+      target,
+      document.uri,
+      getCreateMissingNotePolicy()
+    );
     if (created) {
       await vscode.window.showTextDocument(created, { preview: false });
     }
@@ -53,9 +69,10 @@ function extractTargetFromLine(
   return target.length ? target : null;
 }
 
-async function createMissingNote(
+export async function createMissingNote(
   target: string,
-  fromUri: vscode.Uri
+  fromUri: vscode.Uri,
+  policy: CreateMissingNotePolicy = 'prompt'
 ): Promise<vscode.Uri | null> {
   const workspaceFolder = vscode.workspace.getWorkspaceFolder(fromUri);
   if (!workspaceFolder) {
@@ -70,12 +87,17 @@ async function createMissingNote(
     await vscode.workspace.fs.stat(fileUri);
     return fileUri;
   } catch {
-    const action = await vscode.window.showInformationMessage(
-      `Create note "${target}"?`,
-      'Create'
-    );
-    if (action !== 'Create') {
+    if (policy === 'never') {
       return null;
+    }
+    if (policy === 'prompt') {
+      const action = await vscode.window.showInformationMessage(
+        `Create note "${target}"?`,
+        'Create'
+      );
+      if (action !== 'Create') {
+        return null;
+      }
     }
     await vscode.workspace.fs.createDirectory(
       vscode.Uri.file(path.dirname(filePath))

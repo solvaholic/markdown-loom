@@ -398,6 +398,12 @@ markdown-loom/
     "items": { "type": "string" },
     "default": ["pdf", "png", "jpg", "jpeg", "gif", "svg", "webp", "mp4", "mov", "webm", "mp3", "m4a", "wav"],
     "description": "File extensions (without leading dot) indexed for non-.md wikilink resolution. A [[Name.pdf]] wikilink resolves to any workspace file named Name.pdf. Changing this setting triggers an index rebuild."
+  },
+  "markdownLoom.createMissingNoteOnClick": {
+    "type": "string",
+    "enum": ["prompt", "auto", "never"],
+    "default": "prompt",
+    "description": "Behavior when clicking a [[wikilink]] to a missing note. `prompt` (default) asks for confirmation; `auto` creates and opens the note silently; `never` is a no-op. Only applies to .md targets."
   }
 }
 ```
@@ -413,8 +419,6 @@ Planned settings (see [Roadmap](#roadmap)):
   drag-and-drop attachments.
 - `markdownLoom.attachmentsCustomPath` (string) - workspace-relative
   path used when `attachmentsFolder` is `customPath`.
-- `markdownLoom.createMissingNoteOnClick` (`prompt` | `auto` |
-  `never`) - behavior when clicking a wikilink to a missing note.
 - `markdownLoom.newNoteLocation` (`workspaceRoot` |
   `sameFolderAsActive` | `customPath`) - where click-to-create
   writes the new note.
