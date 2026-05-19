@@ -6,6 +6,16 @@ import { parseWikiLinkBody } from './linkParsing';
 
 export type CreateMissingNotePolicy = 'prompt' | 'auto' | 'never';
 
+export type NewNoteLocationMode =
+  | 'workspaceRoot'
+  | 'sameFolderAsActive'
+  | 'customPath';
+
+export interface NewNoteLocationConfig {
+  mode: NewNoteLocationMode;
+  customPath?: string;
+}
+
 function getCreateMissingNotePolicy(): CreateMissingNotePolicy {
   const value = vscode.workspace
     .getConfiguration('markdownLoom')
@@ -14,6 +24,50 @@ function getCreateMissingNotePolicy(): CreateMissingNotePolicy {
     return value;
   }
   return 'prompt';
+}
+
+function getNewNoteLocationConfig(): NewNoteLocationConfig {
+  const cfg = vscode.workspace.getConfiguration('markdownLoom');
+  const raw = cfg.get<string>('newNoteLocation', 'workspaceRoot');
+  const mode: NewNoteLocationMode =
+    raw === 'sameFolderAsActive' || raw === 'customPath'
+      ? raw
+      : 'workspaceRoot';
+  const customPath = cfg.get<string>('newNoteCustomPath', '') ?? '';
+  return { mode, customPath };
+}
+
+function resolveNewNoteDirectory(
+  workspaceFolder: vscode.WorkspaceFolder,
+  fromUri: vscode.Uri,
+  location: NewNoteLocationConfig
+): string {
+  const root = workspaceFolder.uri.fsPath;
+  if (location.mode === 'sameFolderAsActive') {
+    // Fall back to workspace root when the source isn't a real file URI
+    // (e.g., untitled buffers) per the issue's open question.
+    if (fromUri.scheme === 'file' && fromUri.fsPath) {
+      return path.dirname(fromUri.fsPath);
+    }
+    return root;
+  }
+  if (location.mode === 'customPath') {
+    const trimmed = (location.customPath ?? '').trim();
+    if (!trimmed) {
+      return root;
+    }
+    // Resolve workspace-relative; refuse to escape the source workspace folder.
+    const candidate = path.resolve(root, trimmed);
+    const rel = path.relative(root, candidate);
+    if (rel === '' ) {
+      return root;
+    }
+    if (rel.startsWith('..') || path.isAbsolute(rel)) {
+      return root;
+    }
+    return candidate;
+  }
+  return root;
 }
 
 export function createWikiLinkCommandHandler(
@@ -47,7 +101,8 @@ export function createWikiLinkCommandHandler(
     const created = await createMissingNote(
       target,
       document.uri,
-      getCreateMissingNotePolicy()
+      getCreateMissingNotePolicy(),
+      getNewNoteLocationConfig()
     );
     if (created) {
       await vscode.window.showTextDocument(created, { preview: false });
@@ -72,7 +127,8 @@ function extractTargetFromLine(
 export async function createMissingNote(
   target: string,
   fromUri: vscode.Uri,
-  policy: CreateMissingNotePolicy = 'prompt'
+  policy: CreateMissingNotePolicy = 'prompt',
+  location: NewNoteLocationConfig = { mode: 'workspaceRoot' }
 ): Promise<vscode.Uri | null> {
   const workspaceFolder = vscode.workspace.getWorkspaceFolder(fromUri);
   if (!workspaceFolder) {
@@ -80,7 +136,8 @@ export async function createMissingNote(
   }
 
   const relativePath = target.endsWith('.md') ? target : `${target}.md`;
-  const filePath = path.join(workspaceFolder.uri.fsPath, relativePath);
+  const directory = resolveNewNoteDirectory(workspaceFolder, fromUri, location);
+  const filePath = path.join(directory, relativePath);
   const fileUri = vscode.Uri.file(filePath);
 
   try {

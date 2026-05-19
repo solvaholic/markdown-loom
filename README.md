@@ -26,7 +26,7 @@ Planned (in priority order):
 - [ ] Wikilinks to non-markdown files (`[[Some File.pdf]]`)
 - [ ] Drag-and-drop file insertion (Finder → attachment + wikilink)
 - [x] Configurable click-to-create behavior (prompt / auto / never)
-- [ ] Configurable new-note location
+- [x] Configurable new-note location
 
 The Phase 2 task query DSL and "Create task" command previously listed
 here are **out of scope**. See [Tasks (frozen)](#tasks-frozen) below.
@@ -108,6 +108,8 @@ dependency.
 | `markdownLoom.autoAddDoneDate` | `true` | Automatically append `✅ YYYY-MM-DD` when toggling a task done. |
 | `markdownLoom.attachmentExtensions` | `["pdf","png","jpg","jpeg","gif","svg","webp","mp4","mov","webm","mp3","m4a","wav"]` | File extensions (without leading dot) indexed for non-`.md` wikilink resolution. `[[diagram.png]]` resolves to any workspace file named `diagram.png`. Changing this setting triggers an index rebuild. |
 | `markdownLoom.createMissingNoteOnClick` | `prompt` | Behavior when clicking a `[[wikilink]]` to a missing note: `prompt` (ask before creating), `auto` (create silently and open), or `never` (do nothing). Non-`.md` wikilinks are never auto-created. |
+| `markdownLoom.newNoteLocation` | `workspaceRoot` | Where click-to-create writes a new note: `workspaceRoot` (workspace folder root of the source note, default), `sameFolderAsActive` (next to the file containing the clicked link; falls back to the workspace root for untitled buffers), or `customPath` (use `markdownLoom.newNoteCustomPath`). In a multi-root workspace the destination is resolved against the source note's workspace folder. |
+| `markdownLoom.newNoteCustomPath` | `""` | Workspace-relative directory used when `markdownLoom.newNoteLocation` is `customPath`. Intermediate folders are created as needed. Absolute paths or paths that escape the workspace folder fall back to the workspace folder root. |
 
 ## Keyboard shortcuts
 
