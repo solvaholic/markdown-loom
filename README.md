@@ -71,7 +71,11 @@ here are **out of scope**. See [Tasks (frozen)](#tasks-frozen) below.
   per line for multi-file drops. Cmd+Click resolves the link to the
   copied file.
 - Existing files are never overwritten - collisions append `-1`,
-  `-2`, ... before the extension (e.g., `diagram-1.png`).
+  `-2`, ... before the extension (e.g., `diagram-1.png`). If the
+  source you're dragging *is* the file at the resolved destination
+  (e.g., dragging a workspace file from VS Code's Explorer when
+  `newNoteLocation` points at the same folder), no copy is made and
+  no suffix is added - you just get a wikilink to the existing file.
 - Dropping a non-file payload (URL, plain text) or into a document
   outside any workspace folder falls through to VS Code's default
   drop behavior.

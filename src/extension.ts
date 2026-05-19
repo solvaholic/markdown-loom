@@ -11,7 +11,7 @@ import { createToggleTaskCommand } from './tasks/toggleCommand';
 import { createRenameParticipant } from './providers/linkRenameHandler';
 import { IndexStatusBar } from './status/indexStatusBar';
 import { createShowIndexStatusCommand } from './commands/showIndexStatus';
-import { AttachmentDropProvider, WIKILINK_DROP_EDIT_KIND } from './providers/dropProvider';
+import { AttachmentDropProvider, DROP_MIME_TYPES, WIKILINK_DROP_EDIT_KIND } from './providers/dropProvider';
 
 export function activate(
   context: vscode.ExtensionContext
@@ -57,7 +57,7 @@ export function activate(
       { language: 'markdown', scheme: 'file' },
       new AttachmentDropProvider(),
       {
-        dropMimeTypes: ['text/uri-list'],
+        dropMimeTypes: DROP_MIME_TYPES,
         providedDropEditKinds: [WIKILINK_DROP_EDIT_KIND],
       }
     )

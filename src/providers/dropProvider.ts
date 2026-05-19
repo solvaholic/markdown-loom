@@ -16,8 +16,11 @@ import {
  *
  * Collisions are never overwritten - `name.pdf` becomes `name-1.pdf`,
  * `name-2.pdf`, etc., and the final (suffixed) basename is the one
- * inserted. Non-`file:` URIs and drops onto documents outside any
- * workspace folder fall through to VS Code's default drop behavior.
+ * inserted. If the source file *is* the destination (the user dragged
+ * a file from its existing workspace location), no copy is made and
+ * the existing basename is used verbatim. Non-`file:` URIs and drops
+ * onto documents outside any workspace folder fall through to VS
+ * Code's default drop behavior.
  */
 export class AttachmentDropProvider
   implements vscode.DocumentDropEditProvider {
@@ -27,23 +30,16 @@ export class AttachmentDropProvider
     dataTransfer: vscode.DataTransfer,
     token: vscode.CancellationToken
   ): Promise<vscode.DocumentDropEdit | undefined> {
-    const uriListItem = dataTransfer.get('text/uri-list');
-    if (!uriListItem) {
-      return undefined;
-    }
-
     // Drops onto editors outside any workspace folder fall through.
     const workspaceFolder = vscode.workspace.getWorkspaceFolder(document.uri);
     if (!workspaceFolder) {
       return undefined;
     }
 
-    const raw = await uriListItem.asString();
+    const fileUris = await collectDroppedFileUris(dataTransfer);
     if (token.isCancellationRequested) {
       return undefined;
     }
-
-    const fileUris = parseUriList(raw).filter((u) => u.scheme === 'file');
     if (fileUris.length === 0) {
       return undefined;
     }
@@ -65,17 +61,23 @@ export class AttachmentDropProvider
       if (token.isCancellationRequested) {
         return undefined;
       }
+      const sourceFsPath = sourceUri.fsPath;
       const finalName = await allocateDestinationName(
         destDir,
-        path.basename(sourceUri.fsPath),
-        reserved
+        path.basename(sourceFsPath),
+        reserved,
+        sourceFsPath
       );
       const destPath = path.join(destDir, finalName);
       const destUri = vscode.Uri.file(destPath);
 
-      // If the source is already exactly the destination file, skip the
-      // copy and just insert a wikilink to the existing file.
-      if (sourceUri.fsPath !== destPath) {
+      // Skip the copy when the source already *is* the destination
+      // file. Compare via realpath-style equality so a user who drags
+      // a file from where it already lives in the workspace (Explorer
+      // drag) gets a link to the existing file rather than a
+      // duplicated `-1` copy. Case-insensitive comparison covers the
+      // default macOS/Windows filesystems.
+      if (!isSameFile(sourceFsPath, destPath)) {
         await vscode.workspace.fs.copy(sourceUri, destUri, {
           overwrite: false,
         });
@@ -112,8 +114,75 @@ export const WIKILINK_DROP_EDIT_KIND =
   );
 
 /**
+ * MIME types VS Code may populate for editor drops. Internal drags
+ * (Explorer, search results) use `text/uri-list`; external OS drops
+ * (Finder, Windows Explorer) populate `application/vnd.code.uri-list`
+ * and/or the generic `Files` entry. Declaring all three ensures the
+ * provider is invoked for both code paths.
+ */
+export const DROP_MIME_TYPES: readonly string[] = [
+  'text/uri-list',
+  'application/vnd.code.uri-list',
+  'files',
+];
+
+/**
+ * Collect `file:` URIs from any of the MIME shapes VS Code may use for
+ * an editor drop. Reads `text/uri-list` first (the internal-drag
+ * canonical), then the workbench's external-drop uri-list, then falls
+ * back to iterating `DataTransferFile` items for OS-level file drops.
+ */
+async function collectDroppedFileUris(
+  dataTransfer: vscode.DataTransfer
+): Promise<vscode.Uri[]> {
+  const seen = new Set<string>();
+  const uris: vscode.Uri[] = [];
+  const push = (uri: vscode.Uri | undefined): void => {
+    if (!uri || uri.scheme !== 'file') {
+      return;
+    }
+    const key = uri.fsPath;
+    if (seen.has(key)) {
+      return;
+    }
+    seen.add(key);
+    uris.push(uri);
+  };
+
+  for (const mime of ['text/uri-list', 'application/vnd.code.uri-list']) {
+    const item = dataTransfer.get(mime);
+    if (!item) {
+      continue;
+    }
+    try {
+      const raw = await item.asString();
+      for (const uri of parseUriList(raw)) {
+        push(uri);
+      }
+    } catch {
+      // Ignore unreadable entries; we may still pick up files below.
+    }
+  }
+
+  // External OS drops (Finder, Explorer) expose each file as a
+  // DataTransferItem whose asFile() returns a DataTransferFile with a
+  // populated `uri`. Iterate the whole transfer to be robust to the
+  // exact MIME key (some builds key by extension, some by `Files`).
+  dataTransfer.forEach((item) => {
+    const file = item.asFile?.();
+    if (file?.uri) {
+      push(file.uri);
+    }
+  });
+
+  return uris;
+}
+
+/**
  * Parse a `text/uri-list` payload. Lines starting with `#` are comments
- * per RFC 2483; blank lines and unparseable entries are skipped.
+ * per RFC 2483; blank lines are skipped. Falls back to non-strict
+ * parsing so that OS-produced URIs (which occasionally elide encoding
+ * the strict parser expects) still resolve.
  */
 export function parseUriList(raw: string): vscode.Uri[] {
   const uris: vscode.Uri[] = [];
@@ -122,13 +191,40 @@ export function parseUriList(raw: string): vscode.Uri[] {
     if (!trimmed || trimmed.startsWith('#')) {
       continue;
     }
+    let parsed: vscode.Uri | undefined;
     try {
-      uris.push(vscode.Uri.parse(trimmed, true));
+      parsed = vscode.Uri.parse(trimmed, true);
     } catch {
-      // Skip unparseable entries.
+      try {
+        parsed = vscode.Uri.parse(trimmed, false);
+      } catch {
+        parsed = undefined;
+      }
+    }
+    if (parsed) {
+      uris.push(parsed);
     }
   }
   return uris;
+}
+
+/**
+ * Case-insensitive same-file comparison appropriate for the default
+ * macOS/Windows filesystems. Linux is case-sensitive; on the worst
+ * case the comparison is conservative (we may treat two different
+ * files as same and skip a copy) but in practice the dragged-source
+ * path equals the candidate destination path exactly.
+ */
+function isSameFile(a: string, b: string): boolean {
+  const ra = path.resolve(a);
+  const rb = path.resolve(b);
+  if (ra === rb) {
+    return true;
+  }
+  if (process.platform === 'darwin' || process.platform === 'win32') {
+    return ra.toLowerCase() === rb.toLowerCase();
+  }
+  return false;
 }
 
 /**
@@ -136,11 +232,18 @@ export function parseUriList(raw: string): vscode.Uri[] {
  * already reserved by an earlier file in this drop. Collision suffixes
  * are `-1`, `-2`, ... inserted before the extension, matching the
  * pattern in the issue's acceptance criteria.
+ *
+ * When `sourceFsPath` is supplied and matches the candidate path
+ * (case-insensitively on filesystems that are case-insensitive),
+ * the candidate is treated as a no-op rather than a collision -
+ * dragging a file from where it already lives in the workspace
+ * should never produce a `-1` duplicate.
  */
 export async function allocateDestinationName(
   destDir: string,
   basename: string,
-  reserved: ReadonlySet<string>
+  reserved: ReadonlySet<string>,
+  sourceFsPath?: string
 ): Promise<string> {
   const ext = path.extname(basename);
   const stem = ext ? basename.slice(0, -ext.length) : basename;
@@ -153,6 +256,12 @@ export async function allocateDestinationName(
       const candidatePath = path.join(destDir, candidate);
       try {
         await vscode.workspace.fs.stat(vscode.Uri.file(candidatePath));
+        // Existing file at the candidate path: if it *is* the source,
+        // reuse the name as-is (no copy, no suffix). Otherwise this is
+        // a real collision, fall through and bump the counter.
+        if (sourceFsPath && isSameFile(sourceFsPath, candidatePath)) {
+          return candidate;
+        }
       } catch {
         return candidate;
       }

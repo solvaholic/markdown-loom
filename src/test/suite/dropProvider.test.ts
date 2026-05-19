@@ -145,6 +145,36 @@ suite('allocateDestinationName', () => {
     const name = await allocateDestinationName(tempBase.fsPath, 'README', new Set());
     assert.strictEqual(name, 'README-1');
   });
+
+  test('source-is-destination: returns original name (no -1 suffix)', async () => {
+    const existing = path.join(tempBase.fsPath, 'logo.png');
+    await writeTempFile(vscode.Uri.file(existing), 'x');
+    // When sourceFsPath matches the candidate path, the existing file
+    // is the *same* file we'd otherwise copy, so we keep the name.
+    const name = await allocateDestinationName(
+      tempBase.fsPath,
+      'logo.png',
+      new Set(),
+      existing
+    );
+    assert.strictEqual(name, 'logo.png');
+  });
+
+  test('source-is-destination is case-insensitive on macOS/Windows', async function () {
+    if (process.platform !== 'darwin' && process.platform !== 'win32') {
+      this.skip();
+      return;
+    }
+    const existing = path.join(tempBase.fsPath, 'Logo.png');
+    await writeTempFile(vscode.Uri.file(existing), 'x');
+    const name = await allocateDestinationName(
+      tempBase.fsPath,
+      'Logo.png',
+      new Set(),
+      existing.toLowerCase()
+    );
+    assert.strictEqual(name, 'Logo.png');
+  });
 });
 
 suite('AttachmentDropProvider', () => {
@@ -234,6 +264,69 @@ suite('AttachmentDropProvider', () => {
     } finally {
       await tryDelete(dest1);
       await tryDelete(dest2);
+    }
+  });
+
+  test('source already at the destination: no copy, no -1 suffix, links to existing file', async () => {
+    // User Shift+drops a file from the Explorer that already lives at
+    // the resolved destination. Expected: no new file is written, the
+    // inserted wikilink uses the source's existing basename, and no
+    // `-1`-suffixed copy is created.
+    const docUri = uriFor('rootA', 'Index.md');
+    const document = await vscode.workspace.openTextDocument(docUri);
+    const existing = uriFor('rootA', 'AlreadyHere.png');
+    const dashOne = uriFor('rootA', 'AlreadyHere-1.png');
+    await writeTempFile(existing, 'ORIGINAL');
+    await tryDelete(dashOne);
+
+    try {
+      const edit = await applyDrop(
+        { newNoteLocation: 'workspaceRoot' },
+        document,
+        [existing]
+      );
+      assert.ok(edit);
+      assert.strictEqual(edit!.insertText, '[[AlreadyHere.png]]');
+      // Original is untouched.
+      assert.strictEqual(await readText(existing), 'ORIGINAL');
+      // No spurious -1 copy.
+      await assert.rejects(async () => {
+        await vscode.workspace.fs.stat(dashOne);
+      }, 'expected no -1 duplicate to be created');
+    } finally {
+      await tryDelete(existing);
+      await tryDelete(dashOne);
+    }
+  });
+
+  test('source elsewhere in the workspace with the same basename does suffix', async () => {
+    // A real collision: source file exists in a subfolder, an
+    // unrelated file with the same basename exists at the destination.
+    // We *must* still suffix, only the source-is-dest case is exempt.
+    const docUri = uriFor('rootA', 'Index.md');
+    const document = await vscode.workspace.openTextDocument(docUri);
+    const sourceSub = uriFor('rootA', 'folder', 'shared-name.png');
+    const existingAtDest = uriFor('rootA', 'shared-name.png');
+    const dashOne = uriFor('rootA', 'shared-name-1.png');
+    await writeTempFile(sourceSub, 'SUB');
+    await writeTempFile(existingAtDest, 'AT-DEST');
+    await tryDelete(dashOne);
+
+    try {
+      const edit = await applyDrop(
+        { newNoteLocation: 'workspaceRoot' },
+        document,
+        [sourceSub]
+      );
+      assert.ok(edit);
+      assert.strictEqual(edit!.insertText, '[[shared-name-1.png]]');
+      // Pre-existing unrelated file untouched.
+      assert.strictEqual(await readText(existingAtDest), 'AT-DEST');
+      assert.strictEqual(await readText(dashOne), 'SUB');
+    } finally {
+      await tryDelete(sourceSub);
+      await tryDelete(existingAtDest);
+      await tryDelete(dashOne);
     }
   });
 
@@ -432,5 +525,49 @@ suite('AttachmentDropProvider', () => {
       tokenSource.token
     );
     assert.strictEqual(result, undefined);
+  });
+
+  test('reads URIs from application/vnd.code.uri-list (external/Finder-style drop)', async () => {
+    // Finder/Explorer-originated drops on some VS Code builds expose
+    // the dropped paths via `application/vnd.code.uri-list` rather
+    // than `text/uri-list`. The provider must handle both.
+    const docUri = uriFor('rootA', 'Index.md');
+    const document = await vscode.workspace.openTextDocument(docUri);
+    const source = vscode.Uri.file(path.join(sourceDir.fsPath, 'VendorList.pdf'));
+    await writeTempFile(source, 'V');
+    const dest = uriFor('rootA', 'VendorList.pdf');
+    await tryDelete(dest);
+
+    const conf = vscode.workspace.getConfiguration('markdownLoom');
+    const prevLoc = conf.get<string>('newNoteLocation');
+    await conf.update(
+      'newNoteLocation',
+      'workspaceRoot',
+      vscode.ConfigurationTarget.Workspace
+    );
+    try {
+      const dt = new vscode.DataTransfer();
+      dt.set(
+        'application/vnd.code.uri-list',
+        new vscode.DataTransferItem(source.toString())
+      );
+      const provider = new AttachmentDropProvider();
+      const result = await provider.provideDocumentDropEdits(
+        document,
+        new vscode.Position(0, 0),
+        dt,
+        tokenSource.token
+      );
+      assert.ok(result, 'expected an edit for application/vnd.code.uri-list payload');
+      assert.strictEqual(result!.insertText, '[[VendorList.pdf]]');
+      assert.strictEqual(await readText(dest), 'V');
+    } finally {
+      await conf.update(
+        'newNoteLocation',
+        prevLoc,
+        vscode.ConfigurationTarget.Workspace
+      );
+      await tryDelete(dest);
+    }
   });
 });

@@ -276,9 +276,15 @@ from `markdownLoom.newNoteLocation` (the same policy that governs
 click-to-create) and inserts a wikilink to it at the drop position.
 
 - **API**: `vscode.languages.registerDocumentDropEditProvider`
-  consuming `text/uri-list` MIME data. The returned
-  `DocumentDropEdit` carries a `title` ("Insert wikilink (Markdown
-  Loom)") and a `kind`
+  consuming `text/uri-list`, `application/vnd.code.uri-list`, and
+  the catch-all `Files` MIME types. VS Code uses `text/uri-list` for
+  internal drags (Explorer, search results) and the
+  `application/vnd.code.uri-list` / `Files` shapes for external OS
+  drops (Finder, Windows Explorer); the provider reads from all of
+  them and also iterates `DataTransferFile` entries via
+  `DataTransferItem.asFile()` to pick up OS file payloads. The
+  returned `DocumentDropEdit` carries a `title` ("Insert wikilink
+  (Markdown Loom)") and a `kind`
   (`DocumentDropOrPasteEditKind.Empty.append('text', 'markdown',
   'link', 'wikilink')`) so VS Code's drop chooser surfaces it and
   `Configure preferred drop action...` can target it. The same kind
@@ -303,7 +309,12 @@ click-to-create) and inserts a wikilink to it at the drop position.
   `customPath`.
 - **Collision handling**: never overwrite. If `name.pdf` exists in
   the destination, write `name-1.pdf`, `name-2.pdf`, etc., and
-  insert a wikilink to the suffixed basename.
+  insert a wikilink to the suffixed basename. When the dragged
+  source file *is* the file at the resolved destination (Explorer
+  drag of an in-workspace file when `newNoteLocation` points at the
+  same folder), no copy is performed and no suffix is added - the
+  existing basename is used verbatim. Comparison is case-insensitive
+  on the default macOS/Windows filesystems.
 - **Insertion**: insert `[[<basename>.<ext>]]` (relying on the
   non-markdown wikilink work above to resolve it). Multi-file drops
   produce one wikilink per line.
