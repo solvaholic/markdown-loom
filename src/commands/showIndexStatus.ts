@@ -16,8 +16,7 @@ export function createShowIndexStatusCommand(noteIndex: NoteIndex): {
     const folders = vscode.workspace.workspaceFolders ?? [];
     const mode = noteIndex.isMultiRoot() ? 'multi-root' : 'single-root';
     const folderNames = folders.map((f) => f.name).join(', ') || '(none)';
-    const notes = noteIndex
-      .getNotes()
+    const notes = [...noteIndex.getNotes(), ...noteIndex.getAttachments()]
       .sort((a, b) => a.workspaceRelativePath.localeCompare(b.workspaceRelativePath));
     const count = notes.length;
     const lastRebuildAt = noteIndex.lastRebuildAt;

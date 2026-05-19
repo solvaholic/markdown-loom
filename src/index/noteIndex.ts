@@ -664,6 +664,10 @@ export class NoteIndex implements vscode.Disposable {
     return Array.from(this.notes.values());
   }
 
+  getAttachments(): NoteInfo[] {
+    return Array.from(this.attachmentNotes.values());
+  }
+
   /** Returns true if the URI is indexed — either as a markdown note or an attachment. */
   isIndexed(uri: vscode.Uri): boolean {
     const key = uriKey(uri);

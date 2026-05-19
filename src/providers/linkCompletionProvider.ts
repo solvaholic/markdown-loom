@@ -38,7 +38,7 @@ export class WikiLinkCompletionProvider
     // Per docs/SPEC.md "Wikilink target syntax", legal targets are bare
     // basenames only. Always insert the basename and let users disambiguate
     // collisions by renaming or adding aliases (e.g. `[[Foo|alias]]`).
-    const notes = this.index.getNotes();
+    const notes = [...this.index.getNotes(), ...this.index.getAttachments()];
     return notes
       .filter((note) =>
         note.basename.toLowerCase().includes(prefix.toLowerCase())
