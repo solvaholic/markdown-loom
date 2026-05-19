@@ -136,6 +136,26 @@
           "default": "prompt",
           "markdownDescription": "Behavior when clicking a `[[wikilink]]` to a missing note. Only applies to `.md` targets; non-`.md` (attachment) wikilinks are never auto-created."
         },
+        "markdownLoom.newNoteLocation": {
+          "type": "string",
+          "enum": [
+            "workspaceRoot",
+            "sameFolderAsActive",
+            "customPath"
+          ],
+          "enumDescriptions": [
+            "Write the new note at the workspace folder root of the source note (current behavior).",
+            "Write the new note next to the file containing the clicked wikilink. Falls back to the workspace folder root when the source isn't a file on disk (e.g., an untitled buffer).",
+            "Write the new note inside the workspace-relative directory configured by `markdownLoom.newNoteCustomPath`. Intermediate folders are created as needed."
+          ],
+          "default": "workspaceRoot",
+          "markdownDescription": "Where click-to-create writes a new note for a missing `[[wikilink]]`. In a multi-root workspace the destination is resolved against the workspace folder of the source note (the file containing the clicked link)."
+        },
+        "markdownLoom.newNoteCustomPath": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Workspace-relative directory used when `#markdownLoom.newNoteLocation#` is `customPath`. Resolved against the source note's workspace folder; absolute paths or paths that escape the workspace folder fall back to the workspace folder root."
+        },
         "markdownLoom.attachmentExtensions": {
           "type": "array",
           "items": {

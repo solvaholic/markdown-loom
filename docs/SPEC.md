@@ -404,6 +404,17 @@ markdown-loom/
     "enum": ["prompt", "auto", "never"],
     "default": "prompt",
     "description": "Behavior when clicking a [[wikilink]] to a missing note. `prompt` (default) asks for confirmation; `auto` creates and opens the note silently; `never` is a no-op. Only applies to .md targets."
+  },
+  "markdownLoom.newNoteLocation": {
+    "type": "string",
+    "enum": ["workspaceRoot", "sameFolderAsActive", "customPath"],
+    "default": "workspaceRoot",
+    "description": "Where click-to-create writes a new note. `workspaceRoot` (default) writes at the source note's workspace folder root; `sameFolderAsActive` writes next to the file containing the clicked link (falls back to workspace root for untitled buffers); `customPath` writes inside the workspace-relative directory from `markdownLoom.newNoteCustomPath`. In a multi-root workspace the destination is resolved against the source note's workspace folder."
+  },
+  "markdownLoom.newNoteCustomPath": {
+    "type": "string",
+    "default": "",
+    "description": "Workspace-relative directory used when `markdownLoom.newNoteLocation` is `customPath`. Intermediate folders are created as needed. Absolute paths or paths that escape the workspace folder fall back to the workspace folder root."
   }
 }
 ```
@@ -419,11 +430,6 @@ Planned settings (see [Roadmap](#roadmap)):
   drag-and-drop attachments.
 - `markdownLoom.attachmentsCustomPath` (string) - workspace-relative
   path used when `attachmentsFolder` is `customPath`.
-- `markdownLoom.newNoteLocation` (`workspaceRoot` |
-  `sameFolderAsActive` | `customPath`) - where click-to-create
-  writes the new note.
-- `markdownLoom.newNoteCustomPath` (string) - workspace-relative
-  path used when `newNoteLocation` is `customPath`.
 
 ## Success criteria
 
