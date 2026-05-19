@@ -23,8 +23,8 @@ Shipped:
 Planned (in priority order):
 
 - [x] Link rewrite on file rename (via VS Code's rename hook)
-- [ ] Wikilinks to non-markdown files (`[[Some File.pdf]]`)
-- [ ] Drag-and-drop file insertion (Finder → attachment + wikilink)
+- [x] Wikilinks to non-markdown files (`[[Some File.pdf]]`)
+- [x] Drag-and-drop file insertion (Finder → attachment + wikilink)
 - [x] Configurable click-to-create behavior (prompt / auto / never)
 - [x] Configurable new-note location
 
@@ -48,6 +48,23 @@ here are **out of scope**. See [Tasks (frozen)](#tasks-frozen) below.
   wikilinks; use a plain markdown link `[label](./folder/Note.md)` when
   you need to point at a specific path. See `docs/SPEC.md` 'Wikilink
   target syntax' for the full rules.
+
+### Drag-and-drop attachments
+
+- Drag a file (PDF, image, video, etc.) from Finder or the VS Code
+  Explorer into an open markdown editor.
+- The file is copied into the destination folder resolved from
+  `markdownLoom.newNoteLocation` (and `markdownLoom.newNoteCustomPath`
+  when that mode is `customPath`) - the same location policy as
+  click-to-create.
+- A `[[basename.ext]]` wikilink is inserted at the drop position; one
+  per line for multi-file drops. Cmd+Click resolves the link to the
+  copied file.
+- Existing files are never overwritten - collisions append `-1`,
+  `-2`, ... before the extension (e.g., `diagram-1.png`).
+- Dropping a non-file payload (URL, plain text) or into a document
+  outside any workspace folder falls through to VS Code's default
+  drop behavior.
 
 ### Backlinks panel
 
@@ -108,7 +125,7 @@ dependency.
 | `markdownLoom.autoAddDoneDate` | `true` | Automatically append `✅ YYYY-MM-DD` when toggling a task done. |
 | `markdownLoom.attachmentExtensions` | `["pdf","png","jpg","jpeg","gif","svg","webp","mp4","mov","webm","mp3","m4a","wav"]` | File extensions (without leading dot) indexed for non-`.md` wikilink resolution. `[[diagram.png]]` resolves to any workspace file named `diagram.png`. Changing this setting triggers an index rebuild. |
 | `markdownLoom.createMissingNoteOnClick` | `prompt` | Behavior when clicking a `[[wikilink]]` to a missing note: `prompt` (ask before creating), `auto` (create silently and open), or `never` (do nothing). Non-`.md` wikilinks are never auto-created. |
-| `markdownLoom.newNoteLocation` | `workspaceRoot` | Where click-to-create writes a new note: `workspaceRoot` (workspace folder root of the source note, default), `sameFolderAsActive` (next to the file containing the clicked link; falls back to the workspace root for untitled buffers), or `customPath` (use `markdownLoom.newNoteCustomPath`). In a multi-root workspace the destination is resolved against the source note's workspace folder. |
+| `markdownLoom.newNoteLocation` | `workspaceRoot` | Where click-to-create writes a new note and where drag-and-drop attachments are copied: `workspaceRoot` (workspace folder root of the source note, default), `sameFolderAsActive` (next to the file containing the clicked link or drop target; falls back to the workspace root for untitled buffers), or `customPath` (use `markdownLoom.newNoteCustomPath`). In a multi-root workspace the destination is resolved against the source note's workspace folder. |
 | `markdownLoom.newNoteCustomPath` | `""` | Workspace-relative directory used when `markdownLoom.newNoteLocation` is `customPath`. Intermediate folders are created as needed. Absolute paths or paths that escape the workspace folder fall back to the workspace folder root. |
 
 ## Keyboard shortcuts

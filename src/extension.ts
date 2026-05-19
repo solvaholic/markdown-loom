@@ -11,6 +11,7 @@ import { createToggleTaskCommand } from './tasks/toggleCommand';
 import { createRenameParticipant } from './providers/linkRenameHandler';
 import { IndexStatusBar } from './status/indexStatusBar';
 import { createShowIndexStatusCommand } from './commands/showIndexStatus';
+import { AttachmentDropProvider } from './providers/dropProvider';
 
 export function activate(
   context: vscode.ExtensionContext
@@ -48,6 +49,14 @@ export function activate(
     vscode.languages.registerDocumentLinkProvider(
       { language: 'markdown', scheme: 'file' },
       documentLinkProvider
+    )
+  );
+
+  context.subscriptions.push(
+    vscode.languages.registerDocumentDropEditProvider(
+      { language: 'markdown', scheme: 'file' },
+      new AttachmentDropProvider(),
+      { dropMimeTypes: ['text/uri-list'] }
     )
   );
 

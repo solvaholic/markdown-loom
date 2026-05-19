@@ -149,7 +149,7 @@
             "Write the new note inside the workspace-relative directory configured by `markdownLoom.newNoteCustomPath`. Intermediate folders are created as needed."
           ],
           "default": "workspaceRoot",
-          "markdownDescription": "Where click-to-create writes a new note for a missing `[[wikilink]]`. In a multi-root workspace the destination is resolved against the workspace folder of the source note (the file containing the clicked link)."
+          "markdownDescription": "Where click-to-create writes a new note for a missing `[[wikilink]]` and where drag-and-drop attachments are copied. In a multi-root workspace the destination is resolved against the workspace folder of the source note (the file containing the clicked link or drop target)."
         },
         "markdownLoom.newNoteCustomPath": {
           "type": "string",

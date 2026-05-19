@@ -271,26 +271,32 @@ opens it via the OS / VS Code default handler.
 ### Drag-and-drop file insertion
 
 Dragging a file from Finder or the VS Code Explorer into an open
-markdown editor copies the file into a configurable attachments
-folder and inserts a wikilink to it at the drop position.
+markdown editor copies the file into the destination folder resolved
+from `markdownLoom.newNoteLocation` (the same policy that governs
+click-to-create) and inserts a wikilink to it at the drop position.
 
 - **API**: `vscode.languages.registerDocumentDropEditProvider`
   consuming `text/uri-list` MIME data.
-- **Destination**: configurable via
-  `markdownLoom.attachmentsFolder` with options:
-  - `sameFolderAsActive` (default) - alongside the active note.
-  - `workspaceRoot` - at the workspace folder root.
-  - `customPath` - a workspace-relative path from
-    `markdownLoom.attachmentsCustomPath`.
-- **Collision handling**: never overwrite. If `name.pdf` exists,
-  write `name-1.pdf`, `name-2.pdf`, etc.
+- **Destination**: resolved from `markdownLoom.newNoteLocation` and,
+  when `customPath`, `markdownLoom.newNoteCustomPath`. A dedicated
+  `attachmentsFolder` setting is deliberately not introduced - one
+  location policy covers both new notes and dropped attachments. The
+  `attachments/` subfolder convention is available today via
+  `customPath`.
+- **Collision handling**: never overwrite. If `name.pdf` exists in
+  the destination, write `name-1.pdf`, `name-2.pdf`, etc., and
+  insert a wikilink to the suffixed basename.
 - **Insertion**: insert `[[<basename>.<ext>]]` (relying on the
-  non-markdown wikilink work above to resolve it).
+  non-markdown wikilink work above to resolve it). Multi-file drops
+  produce one wikilink per line.
+- **Fall-through**: non-file payloads (URLs, plain text) and drops
+  onto editors whose document is outside any workspace folder fall
+  through to VS Code's default drop behavior - no copy, no insert.
 - **Acceptance**: dropping `Some File.pdf` from Finder copies it to
-  the configured folder, inserts `[[Some File.pdf]]`, and Cmd+Click
-  opens the copied file; existing files are never overwritten;
-  dropping a non-file (e.g., URL) falls through to VS Code's default
-  drop behavior.
+  the folder resolved from `newNoteLocation`, inserts
+  `[[Some File.pdf]]`, and Cmd+Click opens the copied file; existing
+  files are never overwritten; dropping a non-file (e.g., URL) falls
+  through to VS Code's default drop behavior.
 
 ### Configurable click-to-create behavior
 
@@ -423,13 +429,10 @@ markdown-loom/
 in a future release: the Phase 2 task query work that motivated it is
 no longer planned.
 
-Planned settings (see [Roadmap](#roadmap)):
-
-- `markdownLoom.attachmentsFolder` (`sameFolderAsActive` |
-  `workspaceRoot` | `customPath`) - destination policy for
-  drag-and-drop attachments.
-- `markdownLoom.attachmentsCustomPath` (string) - workspace-relative
-  path used when `attachmentsFolder` is `customPath`.
+`markdownLoom.newNoteLocation` and `markdownLoom.newNoteCustomPath`
+also govern where drag-and-drop attachments are written. See the
+[Drag-and-drop file insertion](#drag-and-drop-file-insertion) Roadmap
+entry; no separate `attachmentsFolder` setting exists.
 
 ## Success criteria
 
