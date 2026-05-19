@@ -276,7 +276,25 @@ from `markdownLoom.newNoteLocation` (the same policy that governs
 click-to-create) and inserts a wikilink to it at the drop position.
 
 - **API**: `vscode.languages.registerDocumentDropEditProvider`
-  consuming `text/uri-list` MIME data.
+  consuming `text/uri-list` MIME data. The returned
+  `DocumentDropEdit` carries a `title` ("Insert wikilink (Markdown
+  Loom)") and a `kind`
+  (`DocumentDropOrPasteEditKind.Empty.append('text', 'markdown',
+  'link', 'wikilink')`) so VS Code's drop chooser surfaces it and
+  `Configure preferred drop action...` can target it. The same kind
+  is advertised via `providedDropEditKinds` in the registration
+  metadata. This requires VS Code >= 1.95.
+- **Invocation (VS Code workbench behavior)**: a plain drag-from-
+  Finder triggers VS Code's workbench-level "open as editor"
+  handler, which runs before any document drop provider. To insert
+  a wikilink, drop from VS Code's own Explorer (which routes
+  through document drop providers) or hold **Shift** while dropping
+  from Finder to bypass the workbench handler and surface the drop
+  chooser. Users can then pick "Insert wikilink (Markdown Loom)"
+  once via `Configure preferred drop action...` to make Shift+drop
+  one-shot from then on. This is a VS Code constraint, not a
+  Markdown Loom choice; it is not something a
+  `DocumentDropEditProvider` can override.
 - **Destination**: resolved from `markdownLoom.newNoteLocation` and,
   when `customPath`, `markdownLoom.newNoteCustomPath`. A dedicated
   `attachmentsFolder` setting is deliberately not introduced - one
@@ -292,11 +310,21 @@ click-to-create) and inserts a wikilink to it at the drop position.
 - **Fall-through**: non-file payloads (URLs, plain text) and drops
   onto editors whose document is outside any workspace folder fall
   through to VS Code's default drop behavior - no copy, no insert.
-- **Acceptance**: dropping `Some File.pdf` from Finder copies it to
-  the folder resolved from `newNoteLocation`, inserts
-  `[[Some File.pdf]]`, and Cmd+Click opens the copied file; existing
-  files are never overwritten; dropping a non-file (e.g., URL) falls
-  through to VS Code's default drop behavior.
+- **Interaction with built-in providers**: VS Code ships built-in
+  `Insert Markdown Image` and `Insert Path` drop edits for the same
+  mime type. When one of those wins (either by default or by being
+  set as the preferred action), it copies the file using its own
+  policy - notably, `Insert Markdown Image` copies next to the
+  active note rather than honoring `newNoteLocation`. Selecting
+  "Insert wikilink (Markdown Loom)" as the preferred drop action
+  routes drops through this provider.
+- **Acceptance**: with "Insert wikilink (Markdown Loom)" selected as
+  the preferred drop action for `text/uri-list`, Shift+dropping
+  `Some File.pdf` from Finder (or dropping it from VS Code's
+  Explorer) copies it to the folder resolved from `newNoteLocation`,
+  inserts `[[Some File.pdf]]`, and Cmd+Click opens the copied file;
+  existing files are never overwritten; dropping a non-file (e.g., a
+  URL) falls through to VS Code's default drop behavior.
 
 ### Configurable click-to-create behavior
 

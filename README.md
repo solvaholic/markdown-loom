@@ -51,8 +51,18 @@ here are **out of scope**. See [Tasks (frozen)](#tasks-frozen) below.
 
 ### Drag-and-drop attachments
 
-- Drag a file (PDF, image, video, etc.) from Finder or the VS Code
-  Explorer into an open markdown editor.
+- Drag a file (PDF, image, video, etc.) from VS Code's Explorer onto
+  the editor, **or hold Shift while dragging from Finder**, to insert
+  a wikilink to the file at the drop position. A plain (no-modifier)
+  drag from Finder is handled by the VS Code workbench before any
+  drop provider sees it and opens the file as an editor instead -
+  this is a VS Code constraint that an extension cannot override.
+- The first time you do this, the drop chooser will list **Insert
+  wikilink (Markdown Loom)** alongside VS Code's built-in `Insert
+  Markdown Image` and `Insert Path`. Right-click the chooser entry
+  and pick `Configure preferred drop action...` to make it the
+  default for `text/uri-list`; subsequent Shift+drops are then
+  one-shot.
 - The file is copied into the destination folder resolved from
   `markdownLoom.newNoteLocation` (and `markdownLoom.newNoteCustomPath`
   when that mode is `customPath`) - the same location policy as

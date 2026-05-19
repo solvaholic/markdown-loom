@@ -87,9 +87,29 @@ export class AttachmentDropProvider
     const insertText = insertedNames
       .map((name) => `[[${name}]]`)
       .join('\n');
-    return new vscode.DocumentDropEdit(insertText);
+    const edit = new vscode.DocumentDropEdit(insertText);
+    edit.title =
+      insertedNames.length > 1
+        ? 'Insert wikilinks (Markdown Loom)'
+        : 'Insert wikilink (Markdown Loom)';
+    edit.kind = WIKILINK_DROP_EDIT_KIND;
+    return edit;
   }
 }
+
+/**
+ * Drop edit kind for our wikilink insertion. Declared both on the edit
+ * and in the registration metadata so VS Code's drop chooser pre-lists
+ * it and `Configure preferred drop action...` can target it. Without a
+ * `kind` (and a `title`) the chooser filters our edit out entirely.
+ */
+export const WIKILINK_DROP_EDIT_KIND =
+  vscode.DocumentDropOrPasteEditKind.Empty.append(
+    'text',
+    'markdown',
+    'link',
+    'wikilink'
+  );
 
 /**
  * Parse a `text/uri-list` payload. Lines starting with `#` are comments

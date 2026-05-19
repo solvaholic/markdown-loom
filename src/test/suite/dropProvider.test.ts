@@ -5,6 +5,7 @@ import {
   AttachmentDropProvider,
   parseUriList,
   allocateDestinationName,
+  WIKILINK_DROP_EDIT_KIND,
 } from '../../providers/dropProvider';
 
 function fixturePath(...parts: string[]): string {
@@ -173,9 +174,66 @@ suite('AttachmentDropProvider', () => {
       const edit = await applyDrop({ newNoteLocation: 'workspaceRoot' }, document, [source]);
       assert.ok(edit, 'expected an edit');
       assert.strictEqual(edit!.insertText, '[[DropTarget.pdf]]');
+      // Single-file drop title - exact text matters for the chooser.
+      assert.strictEqual(edit!.title, 'Insert wikilink (Markdown Loom)');
+      assert.ok(edit!.kind, 'expected edit.kind to be set so the chooser surfaces it');
+      assert.ok(
+        edit!.kind!.contains(WIKILINK_DROP_EDIT_KIND),
+        `expected kind to be (a sub-kind of) the wikilink drop edit kind, got "${edit!.kind!.value}"`
+      );
       assert.strictEqual(await readText(dest), 'TARGET');
     } finally {
       await tryDelete(dest);
+    }
+  });
+
+  test('returned edit declares title and wikilink kind so VS Code surfaces it in the drop chooser', async () => {
+    // VS Code's drop chooser filters out edits without a title/kind, so
+    // these structural fields are as important as insertText. Guarding
+    // them in a dedicated test makes a regression here loudly obvious.
+    const docUri = uriFor('rootA', 'Index.md');
+    const document = await vscode.workspace.openTextDocument(docUri);
+    const source = vscode.Uri.file(path.join(sourceDir.fsPath, 'TitleKind.pdf'));
+    await writeTempFile(source, 'TK');
+    const dest = uriFor('rootA', 'TitleKind.pdf');
+    await tryDelete(dest);
+
+    try {
+      const edit = await applyDrop({ newNoteLocation: 'workspaceRoot' }, document, [source]);
+      assert.ok(edit);
+      assert.ok(
+        typeof edit!.title === 'string' && edit!.title.length > 0,
+        'title must be non-empty'
+      );
+      assert.ok(edit!.kind, 'kind must be set');
+      assert.ok(
+        edit!.kind!.value.split('.').includes('wikilink'),
+        `kind path must include "wikilink", got "${edit!.kind!.value}"`
+      );
+    } finally {
+      await tryDelete(dest);
+    }
+  });
+
+  test('multi-file drop uses the plural title', async () => {
+    const docUri = uriFor('rootA', 'Index.md');
+    const document = await vscode.workspace.openTextDocument(docUri);
+    const s1 = vscode.Uri.file(path.join(sourceDir.fsPath, 'MultiA.pdf'));
+    const s2 = vscode.Uri.file(path.join(sourceDir.fsPath, 'MultiB.pdf'));
+    await writeTempFile(s1, '1');
+    await writeTempFile(s2, '2');
+    const dest1 = uriFor('rootA', 'MultiA.pdf');
+    const dest2 = uriFor('rootA', 'MultiB.pdf');
+    await tryDelete(dest1);
+    await tryDelete(dest2);
+
+    try {
+      const edit = await applyDrop({ newNoteLocation: 'workspaceRoot' }, document, [s1, s2]);
+      assert.ok(edit);
+      assert.strictEqual(edit!.title, 'Insert wikilinks (Markdown Loom)');
+    } finally {
+      await tryDelete(dest1);
+      await tryDelete(dest2);
     }
   });
 
