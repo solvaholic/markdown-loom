@@ -2,9 +2,9 @@ import * as assert from 'assert';
 import * as path from 'path';
 import * as vscode from 'vscode';
 import {
-  getNewNoteLocationConfig,
+  getNewFileLocationConfig,
   resolveNewNoteDirectory,
-  NewNoteLocationConfig,
+  NewFileLocationConfig,
 } from '../../providers/linkCommands';
 
 function fixturePath(...parts: string[]): string {
@@ -32,7 +32,7 @@ function folderFor(name: string): vscode.WorkspaceFolder {
 function resolveNewNoteDirectoryInline(
   workspaceFolder: vscode.WorkspaceFolder,
   fromUri: vscode.Uri,
-  location: NewNoteLocationConfig
+  location: NewFileLocationConfig
 ): string {
   const root = workspaceFolder.uri.fsPath;
   if (location.mode === 'sameFolderAsActive') {
@@ -70,7 +70,7 @@ suite('resolveNewNoteDirectory parity with inline logic', () => {
     name: string;
     folder: vscode.WorkspaceFolder;
     from: vscode.Uri;
-    location: NewNoteLocationConfig;
+    location: NewFileLocationConfig;
   }> = [
     { name: 'workspaceRoot mode returns the folder root',
       folder: rootA, from: noteInRootA, location: { mode: 'workspaceRoot' } },
@@ -108,7 +108,7 @@ suite('resolveNewNoteDirectory parity with inline logic', () => {
 
   test('unknown mode is treated as workspaceRoot', () => {
     // Forced cast: simulates a future/unknown enum value reaching the helper.
-    const bogus = { mode: 'somethingElse' } as unknown as NewNoteLocationConfig;
+    const bogus = { mode: 'somethingElse' } as unknown as NewFileLocationConfig;
     assert.strictEqual(
       resolveNewNoteDirectory(rootA, noteInRootA, bogus),
       rootA.uri.fsPath
@@ -117,7 +117,7 @@ suite('resolveNewNoteDirectory parity with inline logic', () => {
 });
 
 
-suite('getNewNoteLocationConfig', () => {
+suite('getNewFileLocationConfig', () => {
   // Stub vscode.workspace.getConfiguration so tests don't have to mutate
   // (and persist) the real workspace settings file. We only intercept the
   // 'markdownLoom' section; other sections pass through unchanged.
@@ -158,33 +158,33 @@ suite('getNewNoteLocationConfig', () => {
 
   test('returns workspaceRoot defaults when nothing is configured', () => {
     stubMarkdownLoomConfig({});
-    const result = getNewNoteLocationConfig();
+    const result = getNewFileLocationConfig();
     assert.strictEqual(result.mode, 'workspaceRoot');
     assert.strictEqual(result.customPath, '');
   });
 
   test('reads sameFolderAsActive mode from configuration', () => {
-    stubMarkdownLoomConfig({ newNoteLocation: 'sameFolderAsActive' });
-    assert.strictEqual(getNewNoteLocationConfig().mode, 'sameFolderAsActive');
+    stubMarkdownLoomConfig({ newFileLocation: 'sameFolderAsActive' });
+    assert.strictEqual(getNewFileLocationConfig().mode, 'sameFolderAsActive');
   });
 
   test('reads customPath mode plus path value from configuration', () => {
     stubMarkdownLoomConfig({
-      newNoteLocation: 'customPath',
-      newNoteCustomPath: 'inbox/nested',
+      newFileLocation: 'customPath',
+      newFileCustomPath: 'inbox/nested',
     });
-    const result = getNewNoteLocationConfig();
+    const result = getNewFileLocationConfig();
     assert.strictEqual(result.mode, 'customPath');
     assert.strictEqual(result.customPath, 'inbox/nested');
   });
 
   test('unknown mode value falls back to workspaceRoot', () => {
-    stubMarkdownLoomConfig({ newNoteLocation: 'totallyBogus' });
-    assert.strictEqual(getNewNoteLocationConfig().mode, 'workspaceRoot');
+    stubMarkdownLoomConfig({ newFileLocation: 'totallyBogus' });
+    assert.strictEqual(getNewFileLocationConfig().mode, 'workspaceRoot');
   });
 
   test('null customPath is normalized to empty string', () => {
-    stubMarkdownLoomConfig({ newNoteCustomPath: null });
-    assert.strictEqual(getNewNoteLocationConfig().customPath, '');
+    stubMarkdownLoomConfig({ newFileCustomPath: null });
+    assert.strictEqual(getNewFileLocationConfig().customPath, '');
   });
 });

@@ -305,20 +305,20 @@ user-selectable policy.
   creates and opens with no UI; `never` makes click-to-missing a
   no-op (no error toast, no creation).
 
-### Configurable new-note location
+### Configurable new-file location
 
 Today, click-to-create writes the new file at the workspace folder
 root. Make the destination configurable.
 
-- **Setting**: `markdownLoom.newNoteLocation` enum:
+- **Setting**: `markdownLoom.newFileLocation` enum:
   - `workspaceRoot` (default - current behavior).
   - `sameFolderAsActive` - alongside the source note.
   - `customPath` - a workspace-relative path from
-    `markdownLoom.newNoteCustomPath`.
+    `markdownLoom.newFileCustomPath`.
 - **Interaction with multi-root**: resolve `customPath` against the
   workspace folder of the source note, not the first folder.
 - **Acceptance**: default behavior unchanged; `sameFolderAsActive`
-  places the new note next to the file containing the clicked link;
+  places the new file next to the file containing the clicked link;
   `customPath` honors a workspace-relative directory and creates
   intermediate folders as needed.
 
@@ -405,16 +405,16 @@ markdown-loom/
     "default": "prompt",
     "description": "Behavior when clicking a [[wikilink]] to a missing note. `prompt` (default) asks for confirmation; `auto` creates and opens the note silently; `never` is a no-op. Only applies to .md targets."
   },
-  "markdownLoom.newNoteLocation": {
+  "markdownLoom.newFileLocation": {
     "type": "string",
     "enum": ["workspaceRoot", "sameFolderAsActive", "customPath"],
     "default": "workspaceRoot",
-    "description": "Where click-to-create writes a new note. `workspaceRoot` (default) writes at the source note's workspace folder root; `sameFolderAsActive` writes next to the file containing the clicked link (falls back to workspace root for untitled buffers); `customPath` writes inside the workspace-relative directory from `markdownLoom.newNoteCustomPath`. In a multi-root workspace the destination is resolved against the source note's workspace folder."
+    "description": "Where click-to-create writes a new file. `workspaceRoot` (default) writes at the source note's workspace folder root; `sameFolderAsActive` writes next to the file containing the clicked link (falls back to workspace root for untitled buffers); `customPath` writes inside the workspace-relative directory from `markdownLoom.newFileCustomPath`. In a multi-root workspace the destination is resolved against the source note's workspace folder."
   },
-  "markdownLoom.newNoteCustomPath": {
+  "markdownLoom.newFileCustomPath": {
     "type": "string",
     "default": "",
-    "description": "Workspace-relative directory used when `markdownLoom.newNoteLocation` is `customPath`. Intermediate folders are created as needed. Absolute paths or paths that escape the workspace folder fall back to the workspace folder root."
+    "description": "Workspace-relative directory used when `markdownLoom.newFileLocation` is `customPath`. Intermediate folders are created as needed. Absolute paths or paths that escape the workspace folder fall back to the workspace folder root."
   }
 }
 ```

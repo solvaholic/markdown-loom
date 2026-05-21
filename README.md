@@ -108,8 +108,8 @@ dependency.
 | `markdownLoom.autoAddDoneDate` | `true` | Automatically append `✅ YYYY-MM-DD` when toggling a task done. |
 | `markdownLoom.attachmentExtensions` | `["pdf","png","jpg","jpeg","gif","svg","webp","mp4","mov","webm","mp3","m4a","wav"]` | File extensions (without leading dot) indexed for non-`.md` wikilink resolution. `[[diagram.png]]` resolves to any workspace file named `diagram.png`. Changing this setting triggers an index rebuild. |
 | `markdownLoom.createMissingNoteOnClick` | `prompt` | Behavior when clicking a `[[wikilink]]` to a missing note: `prompt` (ask before creating), `auto` (create silently and open), or `never` (do nothing). Non-`.md` wikilinks are never auto-created. |
-| `markdownLoom.newNoteLocation` | `workspaceRoot` | Where click-to-create writes a new note: `workspaceRoot` (workspace folder root of the source note, default), `sameFolderAsActive` (next to the file containing the clicked link; falls back to the workspace root for untitled buffers), or `customPath` (use `markdownLoom.newNoteCustomPath`). In a multi-root workspace the destination is resolved against the source note's workspace folder. |
-| `markdownLoom.newNoteCustomPath` | `""` | Workspace-relative directory used when `markdownLoom.newNoteLocation` is `customPath`. Intermediate folders are created as needed. Absolute paths or paths that escape the workspace folder fall back to the workspace folder root. |
+| `markdownLoom.newFileLocation` | `workspaceRoot` | Where click-to-create writes a new file: `workspaceRoot` (workspace folder root of the source note, default), `sameFolderAsActive` (next to the file containing the clicked link; falls back to the workspace root for untitled buffers), or `customPath` (use `markdownLoom.newFileCustomPath`). In a multi-root workspace the destination is resolved against the source note's workspace folder. |
+| `markdownLoom.newFileCustomPath` | `""` | Workspace-relative directory used when `markdownLoom.newFileLocation` is `customPath`. Intermediate folders are created as needed. Absolute paths or paths that escape the workspace folder fall back to the workspace folder root. |
 
 ## Keyboard shortcuts
 
