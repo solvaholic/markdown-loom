@@ -317,4 +317,19 @@ suite('NoteIndex attachment resolution', () => {
     // tested in the renderer tests.
     assert.ok(Array.isArray(back));
   });
+
+  test('getAttachments() exposes non-markdown attachment NoteInfo entries', () => {
+    const attachments = index.getAttachments();
+    assert.ok(attachments.length > 0, 'expected at least one attachment');
+    const basenames = attachments.map((a) => a.basename);
+    assert.ok(
+      basenames.includes('Some File.pdf'),
+      `expected "Some File.pdf" in attachments, got: ${basenames.join(', ')}`
+    );
+    // Markdown notes must not leak into the attachment list.
+    assert.ok(
+      !basenames.some((b) => b.toLowerCase().endsWith('.md')),
+      'getAttachments() should not include .md notes'
+    );
+  });
 });

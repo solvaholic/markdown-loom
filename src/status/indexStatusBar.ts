@@ -24,7 +24,7 @@ export class IndexStatusBar implements vscode.Disposable {
   }
 
   private updateFromIndex(noteIndex: NoteIndex): void {
-    const count = noteIndex.getNotes().length;
+    const count = noteIndex.getNotes().length + noteIndex.getAttachments().length;
     this.item.text = `$(file) Loom: ${count} note${count === 1 ? '' : 's'}`;
   }
 
