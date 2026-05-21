@@ -26,7 +26,7 @@ function getCreateMissingNotePolicy(): CreateMissingNotePolicy {
   return 'prompt';
 }
 
-function getNewNoteLocationConfig(): NewNoteLocationConfig {
+export function getNewNoteLocationConfig(): NewNoteLocationConfig {
   const cfg = vscode.workspace.getConfiguration('markdownLoom');
   const raw = cfg.get<string>('newNoteLocation', 'workspaceRoot');
   const mode: NewNoteLocationMode =
@@ -37,7 +37,7 @@ function getNewNoteLocationConfig(): NewNoteLocationConfig {
   return { mode, customPath };
 }
 
-function resolveNewNoteDirectory(
+export function resolveNewNoteDirectory(
   workspaceFolder: vscode.WorkspaceFolder,
   fromUri: vscode.Uri,
   location: NewNoteLocationConfig
