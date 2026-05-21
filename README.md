@@ -132,6 +132,16 @@ that auto-stamped done date and leaves any other emoji or tags alone.
   via the same-folder tiebreaker and the others surface as ambiguous
   backlinks.
 - The extension activates only for the `markdown` language.
+- **Click-to-create works in the editor only.** Ctrl/Cmd+clicking a
+  `[[wikilink]]` to a missing note in the markdown source honors
+  `markdownLoom.createMissingNoteOnClick` and
+  `markdownLoom.newFileLocation`. In the markdown **preview**, clicks on
+  unresolved wikilinks are inert (no-op): VS Code's preview routes link
+  clicks through its own built-in handler, which has no extension hook
+  for missing-file behavior, so we render the anchor without a navigable
+  href instead of letting VS Code show its "File doesn't exist. Create?"
+  dialog (which would ignore both settings). Click the wikilink in the
+  editor pane to create the note.
 
 ## Devcontainer
 

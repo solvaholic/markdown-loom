@@ -304,6 +304,16 @@ user-selectable policy.
 - **Acceptance**: existing behavior is unchanged at default; `auto`
   creates and opens with no UI; `never` makes click-to-missing a
   no-op (no error toast, no creation).
+- **Scope (preview vs. editor)**: click-to-create only fires from the
+  **editor** path (DocumentLinkProvider → `markdownLoom.openWikiLink`).
+  In the markdown **preview**, VS Code's built-in link handler resolves
+  unresolved file-like hrefs and ultimately calls `vscode.open` on a
+  non-existent file, which surfaces a "File doesn't exist. Create?"
+  dialog that ignores both this setting and `newFileLocation`. There is
+  no extension hook to intercept that path. To avoid the misleading
+  dialog, unresolved wikilinks in preview are rendered with an inert
+  href (`#`) so the click is a no-op regardless of the policy. Users
+  invoke click-to-create from the editor.
 
 ### Configurable new-file location
 
