@@ -229,6 +229,23 @@ function applyWikiLinkResolution(
   const normalized = target.replace(/\.md$/i, '');
   const resolved = index.resolve(normalized, sourceUri);
   if (!resolved) {
+    // Click-to-create is editor-only: in the preview we have no way to
+    // route an unresolved click through our own command without tripping
+    // the markdown extension's built-in "File doesn't exist. Create?"
+    // dialog. That dialog ignores `markdownLoom.createMissingNoteOnClick`
+    // (issue #40) and `markdownLoom.newFileLocation` (issue #41) because
+    // it lives in microsoft/vscode-markdown-languageservice and writes
+    // next to the previewed file. Emitting an inert href makes the
+    // anchor a visible-but-no-op link in preview; the editor path
+    // (Ctrl/Cmd+Click → markdownLoom.openWikiLink) is unaffected and
+    // continues to honor both settings.
+    token.attrSet('href', '#');
+    setOrAppendAttr(token, 'data-href', '#');
+    const sectionSuffix = section ? `#${section}` : '';
+    token.attrSet(
+      'title',
+      `Note not found: ${target}${sectionSuffix}. Open the source file in the editor (Ctrl/Cmd+Click the wikilink) to create it.`
+    );
     setOrAppendAttr(token, RESOLVED_VIA_ATTR, 'fallback-not-found');
     return;
   }

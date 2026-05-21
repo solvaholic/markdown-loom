@@ -155,9 +155,18 @@ suite('WikiLink Preview Renderer (NoteIndex-aware)', () => {
     assert.match(html, /href="\.\/folder\/Nested\.md"/);
   });
 
-  test('unresolved target falls back to bare target.md', () => {
+  test('unresolved target with source URI: href is inert (issues #40, #41)', () => {
+    // In preview, an unresolved wikilink anchor must NOT carry a file-like
+    // href: clicking such a link triggers VS Code's built-in "File doesn't
+    // exist. Create?" dialog which ignores the loom config (#40, #41).
+    // Click-to-create is editor-only; the editor path runs through
+    // markdownLoom.openWikiLink and continues to honor both settings.
     const html = renderWith(uriFor('rootA', 'Index.md'), '[[does-not-exist]]');
-    assert.match(html, /href="does-not-exist\.md"/);
+    assert.match(html, /href="#"/);
+    assert.match(html, /data-href="#"/);
+    assert.match(html, /data-resolved-via="fallback-not-found"/);
+    assert.match(html, /title="Note not found: does-not-exist\./);
+    assert.doesNotMatch(html, /href="does-not-exist\.md"/);
   });
 
   test('renders correctly when env has no source URI', () => {
@@ -250,14 +259,17 @@ suite('WikiLink Preview Renderer (NoteIndex-aware)', () => {
     assert.match(html, /data-href="\.\/Notes\.md#introduction"/);
   });
 
-  test('section ref to unknown note falls back with fragment in href', () => {
-    // Missing note → fallback href includes the slug so the pattern is
-    // consistent even before the file exists.
+  test('section ref to unknown note: href is inert in preview (issues #40, #41)', () => {
+    // The unresolved-with-source path is inert so the preview's built-in
+    // "File doesn't exist. Create?" dialog never fires. The fragment is
+    // captured in the tooltip instead of the href.
     const html = renderWith(
       uriFor('rootA', 'Index.md'),
       '[[NoSuchNote#My Section]]'
     );
-    assert.match(html, /href="NoSuchNote\.md#my-section"/);
+    assert.match(html, /href="#"/);
+    assert.match(html, /title="Note not found: NoSuchNote#My Section\./);
+    assert.doesNotMatch(html, /href="NoSuchNote\.md/);
   });
 
   test('block ref: resolved href uses literal #^id (no slugify)', () => {

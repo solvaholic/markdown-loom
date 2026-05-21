@@ -304,6 +304,16 @@ user-selectable policy.
 - **Acceptance**: existing behavior is unchanged at default; `auto`
   creates and opens with no UI; `never` makes click-to-missing a
   no-op (no error toast, no creation).
+- **Scope (preview vs. editor)**: click-to-create only fires from the
+  **editor** path (DocumentLinkProvider → `markdownLoom.openWikiLink`).
+  In the markdown **preview**, VS Code's built-in link handler resolves
+  unresolved file-like hrefs and ultimately calls `vscode.open` on a
+  non-existent file, which surfaces a "File doesn't exist. Create?"
+  dialog that ignores both this setting and `newFileLocation`. There is
+  no extension hook to intercept that path. To avoid the misleading
+  dialog, unresolved wikilinks in preview are rendered with an inert
+  href (`#`) so the click is a no-op regardless of the policy. Users
+  invoke click-to-create from the editor.
 
 ### Configurable new-file location
 
@@ -321,6 +331,55 @@ root. Make the destination configurable.
   places the new file next to the file containing the clicked link;
   `customPath` honors a workspace-relative directory and creates
   intermediate folders as needed.
+
+### Preview click-to-create (deferred)
+
+Today, clicking an unresolved `[[wikilink]]` in the **markdown
+preview** is a no-op (see the "Scope" bullet under "Configurable
+click-to-create behavior" above). The editor path still honors
+`createMissingNoteOnClick` and `newFileLocation`; only the preview
+is inert.
+
+This is intentional, not "not yet implemented". VS Code's preview
+routes link clicks through `microsoft/vscode-markdown-languageservice`
+→ `MdLinkOpener.openDocumentLink` → `vscode.open(uri)`, and that path
+has no extension hook for "this href is missing — let me handle it".
+Hitting it on a non-existent file triggers VS Code's built-in
+"File doesn't exist. Create?" dialog, which ignores both settings
+and always writes next to the previewed file (issues #40, #41).
+
+If users start asking for working preview click-to-create, the most
+viable option is a **registered URI handler**:
+
+- Render unresolved wikilinks in preview as
+  `vscode://markdown-loom.markdown-loom/openWikiLink?target=…&source=…`
+  instead of `#`.
+- Register via `vscode.window.registerUriHandler` and route the URI
+  through the existing `markdownLoom.openWikiLink` flow (so both
+  settings are honored).
+- Cost: VS Code shows a one-time "Allow markdown-loom to open this
+  URI?" trust prompt on first click in a profile. After approval the
+  prompt is silent.
+
+Rejected alternatives (kept here so we don't re-investigate from
+scratch):
+
+- **`command:` URI in the anchor** — `vscode.open` routes `command:`
+  through the opener service's `commandOpener`, which silently drops
+  the URI unless the caller passes `allowCommands: true` (the markdown
+  extension does not).
+- **Preview script via `contributes.markdown.previewScripts`** — runs
+  in the webview but cannot message the extension host:
+  `acquireVsCodeApi` is already claimed by the preview's own script,
+  and the markdown extension does not forward unknown messages to
+  contributing extensions.
+- **`FileSystemProvider` / `TextDocumentContentProvider` on a custom
+  scheme** — works but opens a side-effect-only document tab, which
+  is worse UX than the trust prompt.
+
+Defer until there's user demand. The current inert-href behavior is
+correct (no surprising dialog, no surprising file location); it's
+just less convenient than a working preview click would be.
 
 ### Recommended companion extensions
 
