@@ -37,7 +37,11 @@ before bumping the version.
    - [ ] Cmd+Click on `[[Notes]]` opens `rootA/Notes.md`.
    - [ ] Cmd+Click on `[[Sibling]]` opens `rootB/Sibling.md` (cross-root via
          a basename that is unique to rootB).
-   - [ ] Cmd+Click on `[[does-not-exist]]` prompts to create the note.
+   - [ ] Cmd+Click on `[[does-not-exist]]` honors
+         `markdownLoom.createMissingNoteOnClick` (default `prompt` shows
+         the create dialog) and writes the new file to the location
+         configured by `markdownLoom.newFileLocation` (default
+         `workspaceRoot`).
    - [ ] Backlinks panel updates when switching files.
 4. **Preview side** (`Cmd+Shift+V`):
    - [ ] `[[Notes]]` renders as a clickable anchor, not literal `[[Notes]]`
@@ -45,10 +49,11 @@ before bumping the version.
    - [ ] Multiple wikilinks on one line all render as anchors (regression
          guard against the stale-`lastIndex` bug).
    - [ ] Clicking `[[Notes]]` in the preview opens `rootA/Notes.md`.
-   - [ ] Clicking `[[Sibling]]` in the preview opens `rootB/Sibling.md`,
-         not a "create note" prompt for `rootA/Sibling.md`. (Path-prefixed
-         targets like `[[rootB/Foo]]` are illegal per `docs/SPEC.md` and
-         render as literal text - don't smoke-test with those.)
+   - [ ] Clicking `[[Sibling]]` in the preview opens `rootB/Sibling.md`
+         (cross-root basename resolution works in the preview too).
+   - [ ] Clicking `[[does-not-exist]]` in the preview is a no-op (no
+         navigation, no "create note" dialog). Click-to-create lives in
+         the editor only; see README "Limitations".
    - [ ] Wikilinks inside fenced code blocks render as literal text.
 5. **Tasks:** open a file with `- [ ] task`, hit `Cmd+Alt+T`, confirm the
    line gets `✅ <today>` appended.
