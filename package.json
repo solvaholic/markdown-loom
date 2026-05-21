@@ -2,7 +2,7 @@
   "name": "markdown-loom",
   "displayName": "Markdown Loom",
   "description": "Plain-markdown note taking with wikilinks, backlinks, and tasks.",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "publisher": "markdown-loom",
   "engines": {
     "vscode": "^1.85.0"
@@ -161,7 +161,21 @@
           "items": {
             "type": "string"
           },
-          "default": ["pdf", "png", "jpg", "jpeg", "gif", "svg", "webp", "mp4", "mov", "webm", "mp3", "m4a", "wav"],
+          "default": [
+            "pdf",
+            "png",
+            "jpg",
+            "jpeg",
+            "gif",
+            "svg",
+            "webp",
+            "mp4",
+            "mov",
+            "webm",
+            "mp3",
+            "m4a",
+            "wav"
+          ],
           "markdownDescription": "File extensions (without leading dot) that are indexed for non-`.md` wikilink resolution. A `[[Name.pdf]]` wikilink resolves to any file named `Name.pdf` in the workspace. Changing this setting triggers an index rebuild."
         }
       }
