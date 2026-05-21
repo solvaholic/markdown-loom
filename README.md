@@ -19,14 +19,14 @@ Shipped:
 - [x] Task toggle with auto-stamped done date (frozen, see below)
 - [x] Section references (`[[Note#Heading]]`) in editor and preview
 - [x] Block references (`[[Note#^blockid]]`) in editor and preview
+- [x] Link rewrite on file rename (via VS Code's rename hook)
+- [x] Wikilinks to non-markdown files (`[[Some File.pdf]]`)
+- [x] Configurable click-to-create behavior (prompt / auto / never)
+- [x] Configurable new-note location
 
 Planned (in priority order):
 
-- [x] Link rewrite on file rename (via VS Code's rename hook)
-- [x] Wikilinks to non-markdown files (`[[Some File.pdf]]`)
 - [ ] Drag-and-drop file insertion (Finder → attachment + wikilink)
-- [x] Configurable click-to-create behavior (prompt / auto / never)
-- [x] Configurable new-note location
 
 The Phase 2 task query DSL and "Create task" command previously listed
 here are **out of scope**. See [Tasks (frozen)](#tasks-frozen) below.
