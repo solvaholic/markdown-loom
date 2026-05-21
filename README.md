@@ -23,7 +23,7 @@ Shipped:
 Planned (in priority order):
 
 - [x] Link rewrite on file rename (via VS Code's rename hook)
-- [ ] Wikilinks to non-markdown files (`[[Some File.pdf]]`)
+- [x] Wikilinks to non-markdown files (`[[Some File.pdf]]`)
 - [ ] Drag-and-drop file insertion (Finder → attachment + wikilink)
 - [x] Configurable click-to-create behavior (prompt / auto / never)
 - [x] Configurable new-note location
