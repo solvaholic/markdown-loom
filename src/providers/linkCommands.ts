@@ -6,13 +6,13 @@ import { parseWikiLinkBody } from './linkParsing';
 
 export type CreateMissingNotePolicy = 'prompt' | 'auto' | 'never';
 
-export type NewNoteLocationMode =
+export type NewFileLocationMode =
   | 'workspaceRoot'
   | 'sameFolderAsActive'
   | 'customPath';
 
-export interface NewNoteLocationConfig {
-  mode: NewNoteLocationMode;
+export interface NewFileLocationConfig {
+  mode: NewFileLocationMode;
   customPath?: string;
 }
 
@@ -26,21 +26,21 @@ function getCreateMissingNotePolicy(): CreateMissingNotePolicy {
   return 'prompt';
 }
 
-export function getNewNoteLocationConfig(): NewNoteLocationConfig {
+export function getNewFileLocationConfig(): NewFileLocationConfig {
   const cfg = vscode.workspace.getConfiguration('markdownLoom');
-  const raw = cfg.get<string>('newNoteLocation', 'workspaceRoot');
-  const mode: NewNoteLocationMode =
+  const raw = cfg.get<string>('newFileLocation', 'workspaceRoot');
+  const mode: NewFileLocationMode =
     raw === 'sameFolderAsActive' || raw === 'customPath'
       ? raw
       : 'workspaceRoot';
-  const customPath = cfg.get<string>('newNoteCustomPath', '') ?? '';
+  const customPath = cfg.get<string>('newFileCustomPath', '') ?? '';
   return { mode, customPath };
 }
 
 export function resolveNewNoteDirectory(
   workspaceFolder: vscode.WorkspaceFolder,
   fromUri: vscode.Uri,
-  location: NewNoteLocationConfig
+  location: NewFileLocationConfig
 ): string {
   const root = workspaceFolder.uri.fsPath;
   if (location.mode === 'sameFolderAsActive') {
@@ -102,7 +102,7 @@ export function createWikiLinkCommandHandler(
       target,
       document.uri,
       getCreateMissingNotePolicy(),
-      getNewNoteLocationConfig()
+      getNewFileLocationConfig()
     );
     if (created) {
       await vscode.window.showTextDocument(created, { preview: false });
@@ -128,7 +128,7 @@ export async function createMissingNote(
   target: string,
   fromUri: vscode.Uri,
   policy: CreateMissingNotePolicy = 'prompt',
-  location: NewNoteLocationConfig = { mode: 'workspaceRoot' }
+  location: NewFileLocationConfig = { mode: 'workspaceRoot' }
 ): Promise<vscode.Uri | null> {
   const workspaceFolder = vscode.workspace.getWorkspaceFolder(fromUri);
   if (!workspaceFolder) {

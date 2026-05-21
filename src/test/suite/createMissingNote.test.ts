@@ -4,7 +4,7 @@ import * as vscode from 'vscode';
 import {
   createMissingNote,
   CreateMissingNotePolicy,
-  NewNoteLocationConfig,
+  NewFileLocationConfig,
 } from '../../providers/linkCommands';
 
 function fixturePath(...parts: string[]): string {
@@ -230,7 +230,7 @@ suite('createMissingNote location', () => {
     await tryDelete(intermediate);
     await tryDelete(notExpected);
 
-    const location: NewNoteLocationConfig = {
+    const location: NewFileLocationConfig = {
       mode: 'customPath',
       customPath: 'inbox',
     };
