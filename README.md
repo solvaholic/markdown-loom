@@ -62,6 +62,17 @@ here are **out of scope**. See [Tasks (frozen)](#tasks-frozen) below.
   so you can spot and resolve the collision (rename, move, or live
   with the warning - see `docs/SPEC.md` 'Wikilink target syntax').
 
+### Find unresolved wikilinks
+
+- Run **Markdown Loom: Show Unresolved Wikilinks** from the Command
+  Palette to list every `[[link]]` whose target no longer exists.
+- Handy after renaming or moving notes, when once-valid links quietly
+  rot.
+- Pick an entry to jump straight to the link in its source file. When
+  everything resolves, you get a friendly "All wikilinks resolve."
+  message. It's a one-shot snapshot - run it again after edits to
+  refresh.
+
 ### Tasks (frozen)
 
 Markdown Loom ships a small Obsidian-Tasks-compatible toggle command

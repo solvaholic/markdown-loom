@@ -55,6 +55,21 @@ export interface BacklinkLocation {
   ambiguous: boolean;
 }
 
+/**
+ * A wikilink whose bare target does not resolve to any indexed note or
+ * attachment. Surfaced by the "Show Unresolved Wikilinks" diagnostic command.
+ */
+export interface UnresolvedLink {
+  /** The source note that contains the unresolved link. */
+  sourceUri: vscode.Uri;
+  /** The bare wikilink target (alias and section ref already stripped). */
+  target: string;
+  /** Range of the full `[[...]]` token in the source. */
+  range: vscode.Range;
+  /** Trimmed text of the source line, for display. */
+  preview: string;
+}
+
 const wikilinkPattern = /\[\[([^\]]+)\]\]/g;
 const fencePattern = /^[ \t]{0,3}(```|~~~)/;
 const atxHeadingPattern = /^#{1,6}[ \t]+(.+?)[ \t]*(?:#+[ \t]*)?$/;
@@ -714,7 +729,39 @@ export class NoteIndex implements vscode.Disposable {
     return results;
   }
 
-  /** Return all indexed headings for the given note URI. */
+  /**
+   * Walk every indexed source link and return those whose bare target fails to
+   * resolve to a note or attachment. A one-shot snapshot of the current index;
+   * callers re-invoke to refresh. Results are sorted by source path then line
+   * so the diagnostic UI is stable across runs.
+   */
+  getUnresolvedLinks(): UnresolvedLink[] {
+    const out: UnresolvedLink[] = [];
+    for (const [key, links] of this.sourceLinks) {
+      const note = this.notes.get(key);
+      if (!note) {
+        continue;
+      }
+      for (const link of links) {
+        if (this.resolve(link.rawTarget, note.uri) === null) {
+          out.push({
+            sourceUri: note.uri,
+            target: link.rawTarget,
+            range: link.range,
+            preview: link.preview
+          });
+        }
+      }
+    }
+    out.sort((a, b) => {
+      const pathCmp = uriKey(a.sourceUri).localeCompare(uriKey(b.sourceUri));
+      if (pathCmp !== 0) {
+        return pathCmp;
+      }
+      return a.range.start.compareTo(b.range.start);
+    });
+    return out;
+  }
   getHeadings(targetUri: vscode.Uri): HeadingInfo[] {
     return this.headings.get(uriKey(targetUri)) ?? [];
   }
