@@ -58,6 +58,10 @@
       {
         "command": "markdownLoom.showIndexStatus",
         "title": "Markdown Loom: Show Index Status"
+      },
+      {
+        "command": "markdownLoom.showUnresolvedWikilinks",
+        "title": "Markdown Loom: Show Unresolved Wikilinks"
       }
     ],
     "keybindings": [

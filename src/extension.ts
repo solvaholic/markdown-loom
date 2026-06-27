@@ -11,6 +11,7 @@ import { createToggleTaskCommand } from './tasks/toggleCommand';
 import { createRenameParticipant } from './providers/linkRenameHandler';
 import { IndexStatusBar } from './status/indexStatusBar';
 import { createShowIndexStatusCommand } from './commands/showIndexStatus';
+import { createShowUnresolvedWikilinksCommand } from './commands/showUnresolvedWikilinks';
 
 export function activate(
   context: vscode.ExtensionContext
@@ -72,6 +73,13 @@ export function activate(
   context.subscriptions.push(showIndexStatus);
   context.subscriptions.push(
     vscode.commands.registerCommand('markdownLoom.showIndexStatus', showIndexStatus.handler)
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      'markdownLoom.showUnresolvedWikilinks',
+      createShowUnresolvedWikilinksCommand(noteIndex)
+    )
   );
 
   context.subscriptions.push(

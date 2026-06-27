@@ -177,6 +177,37 @@ out of scope here. For richer task workflows:
 The existing settings (`markdownLoom.taskDateFormat`,
 `markdownLoom.autoAddDoneDate`) remain so 0.2.0 users are not broken.
 
+### 4. Show unresolved wikilinks (shipped)
+
+A diagnostic command, `Markdown Loom: Show Unresolved Wikilinks`, that
+surfaces every `[[wikilink]]` whose target does not resolve to a note
+or attachment anywhere in the workspace. Renaming or moving files turns
+once-valid links into invisible rot; this command makes that rot
+visible without clicking each link.
+
+- **Source of truth**: walk `NoteIndex.sourceLinks` and keep each link
+  whose bare target fails `NoteIndex.resolve` (returns `null`). The
+  target is the basename only - aliases (`|`) and section refs (`#`)
+  are already stripped during indexing, and a link to an existing note
+  with a missing heading still resolves to the file (it is *not*
+  unresolved). Links inside fenced code blocks are already excluded by
+  the indexer.
+- **UI**: a QuickPick listing every unresolved link. Each item shows
+  the unresolved target, the workspace-relative source path, and the
+  1-based line number. Picking an item opens the source document with
+  the selection on the link's range.
+- **Empty case**: when every wikilink resolves, show a friendly
+  information message ("All wikilinks resolve.") instead of an empty
+  picker.
+- **Snapshot semantics**: results are gathered when the command runs.
+  It is a one-shot snapshot, not a live view; re-invoking after edits
+  reflects the current state. A live tree view is a possible follow-up.
+- **Acceptance**: lists every unresolved wikilink across the workspace
+  (all roots in multi-root); selecting an entry navigates to the source
+  location with the link selected; the empty case shows the friendly
+  message; re-invoking after fixing or breaking links reflects the new
+  state.
+
 ## Roadmap
 
 In priority order:
