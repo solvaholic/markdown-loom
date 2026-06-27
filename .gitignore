@@ -6,6 +6,9 @@ out/
 # Dependencies
 node_modules/
 
+# Devcontainer feature lock (regenerated locally; not maintained in-repo)
+.devcontainer/devcontainer-lock.json
+
 # Temporary files
 .vscode-test/
 tmp/
