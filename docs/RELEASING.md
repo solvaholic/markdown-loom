@@ -71,24 +71,65 @@ unit test that locks in the failure mode is a good idea before the fix.
 
 Pick the right SemVer bump. See [`docs/TRIAGE.md`](TRIAGE.md) for the full SemVer table.
 
+`main` is protected by a ruleset that requires changes to arrive via pull
+request. We honor that *and* keep a linear history (no merge commits) by
+landing the release bump through a PR and then **fast-forwarding** `main` onto
+it. Because a fast-forward preserves the commit SHA, the annotated tag that
+`npm version` creates stays valid: it points at the exact commit that ends up
+on `main`, so there is no orphaned tag. (Orphaned tags are what forced the
+v0.3.1 merge-commit recovery in #53; see "Lessons learned".)
+
+Two rules keep this safe:
+
+- **Fast-forward, never rebase/squash, when landing the bump.** Rebase and
+  squash rewrite the SHA and orphan the tag; a fast-forward keeps it.
+- **Push the tag only after the bump commit is on `main`** (step 5). Pushing
+  it earlier is exactly what orphaned the v0.3.1 tag - `--follow-tags` shipped
+  the tag to origin while the `main` ref push was rejected.
+
+> The fast-forward push to `main` succeeds because the releaser is a repo
+> owner/admin and bypasses the pull-request rule for a fast-forward. The PR
+> still exists for visibility and review; the fast-forward push is what records
+> it as merged (GitHub marks it "merged outside GitHub").
+
 ```sh
-# 1. Bump version, commit, and tag in one step.
-#    Replace `minor` with `patch` or `major` as appropriate.
-npm version minor -m "chore(release): v%s"
+# 0. Make sure local main is current before branching.
+git switch main && git pull --ff-only
 
-# 2. Build the VSIX from the bumped tree.
-npm run package
-# Produces markdown-loom-<version>.vsix in the repo root.
+# 1. Branch for the release bump.
+VERSION_BUMP=minor   # or patch / major
+RELEASE_BRANCH="release-bump-$(date +%Y%m%d-%H%M%S)"
+git switch -c "$RELEASE_BRANCH"
 
-# 3. Push the commit and the tag.
-git push origin main --follow-tags
+# 2. Bump version + commit + annotated tag, all LOCALLY (npm does not push).
+#    The tag points at this bump commit; the fast-forward in step 4 preserves
+#    that SHA, so the tag stays valid.
+npm version "$VERSION_BUMP" -m "chore(release): v%s"
+VERSION="v$(node -p "require('./package.json').version")"
 
-# 4. Publish a GitHub Release with the VSIX attached.
+# 3. Build the VSIX, push the BRANCH (not the tag), and open the PR.
+npm run package                 # markdown-loom-<version>.vsix in repo root
+git push -u origin "$RELEASE_BRANCH"   # no --follow-tags
+gh pr create --fill --base main
+
+# 4. Fast-forward main onto the bump commit and push. This settles the PR as
+#    merged with no merge commit; the head branch auto-deletes on origin.
+git switch main
+git merge --ff-only "$RELEASE_BRANCH"
+git push origin main
+
+# 5. Now that the bump commit is on main, push its tag.
+git push origin "$VERSION"
+
+# 6. Publish a GitHub Release with the VSIX attached.
 #    --generate-notes drafts release notes from merged PRs since the last tag;
 #    edit them afterward to call out user-facing changes.
-gh release create "v$(node -p "require('./package.json').version")" \
-  "markdown-loom-$(node -p "require('./package.json').version").vsix" \
+gh release create "$VERSION" \
+  "markdown-loom-${VERSION#v}.vsix" \
   --generate-notes
+
+# 7. Clean up the local release branch (origin's was auto-deleted in step 4).
+git branch -d "$RELEASE_BRANCH"
 ```
 
 After `gh release create`, open the release in the browser and:
@@ -136,6 +177,14 @@ The issue-to-release mapping is covered without extra bookkeeping: each closed i
 
 ## Lessons learned
 
+- **v0.3.1**: cutting the release with `git push origin main --follow-tags`
+  failed under the `main` ruleset. The branch ref push was rejected (changes
+  must arrive via PR), but `--follow-tags` had already pushed the annotated tag
+  to origin, where it pointed at a commit that never landed on `main` - an
+  orphaned tag. Recovery merged the bump through a merge-commit PR (#53), the
+  exact merge-commit outcome we want to avoid. The "Cut the release" flow above
+  fixes both: land the bump via a fast-forward (preserves the SHA, keeps the
+  tag valid) and push the tag only after the commit is on `main` (#54).
 - **v0.1.0**: shipped with a private repo, so `raw.githubusercontent.com`
   links to `docs/demo.gif` 404'd everywhere the demo was meant to render
   (Marketplace, release notes). Fix was to flip the repo public after tagging.
