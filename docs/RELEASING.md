@@ -12,6 +12,12 @@ steps is how we end up with a release whose demo GIF doesn't render (see
       shipping. If the README embeds assets (GIFs, screenshots), confirm the
       asset files are committed *and* the URLs you'll use will resolve for
       anonymous viewers.
+- [ ] **Currency check.** Beyond the docs check above, confirm the repo's
+      *config* matches what it ships: settings and agent-instruction files don't
+      assert a mode the repo isn't actually in (e.g. an editor config claiming
+      ESLint "flat-config mode" while the on-disk config is still legacy
+      eslintrc), no superseded config or stray generated artifacts linger, and
+      version strings agree across `package.json` and any embedded references.
 - [ ] **Repo visibility.** If the repo is private, `raw.githubusercontent.com`
       URLs return 404 for the Marketplace listing and for unauthenticated
       release-notes viewers. Either make the repo public before tagging, or
