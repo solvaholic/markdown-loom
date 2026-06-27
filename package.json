@@ -27,7 +27,7 @@
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "pretest": "node -e \"require('fs').rmSync('dist', {recursive:true,force:true})\" && npm run compile && npm run lint",
-    "lint": "eslint src --ext ts",
+    "lint": "eslint src",
     "test": "vscode-test",
     "package": "vsce package"
   },
@@ -189,18 +189,18 @@
     "markdown-it": "^14.1.0"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.4",
     "@types/markdown-it": "^14.1.2",
     "@types/mocha": "^10.0.6",
     "@types/node": "^22.13.0",
     "@types/vscode": "^1.85.0",
-    "@typescript-eslint/eslint-plugin": "^8.54.0",
-    "@typescript-eslint/parser": "^8.54.0",
     "@vscode/test-cli": "^0.0.4",
     "@vscode/test-electron": "^2.3.9",
     "@vscode/vsce": "^2.24.0",
-    "eslint": "^8.56.0",
+    "eslint": "^9.39.4",
     "glob": "^10.3.10",
     "mocha": "^10.3.0",
-    "typescript": "^5.5.4"
+    "typescript": "^5.5.4",
+    "typescript-eslint": "^8.62.0"
   }
 }
