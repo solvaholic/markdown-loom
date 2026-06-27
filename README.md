@@ -73,6 +73,14 @@ here are **out of scope**. See [Tasks (frozen)](#tasks-frozen) below.
   message. It's a one-shot snapshot - run it again after edits to
   refresh.
 
+### Inspect the index
+
+- Run **Markdown Loom: Show Index Status** from the Command Palette to
+  check how many notes are indexed, along with a small sample of indexed
+  paths - a quick sanity check when completion or backlinks look stale.
+- The sample size is configurable via
+  `markdownLoom.indexStatusSampleSize`.
+
 ### Tasks (frozen)
 
 Markdown Loom ships a small Obsidian-Tasks-compatible toggle command
@@ -121,6 +129,7 @@ dependency.
 | `markdownLoom.createMissingNoteOnClick` | `prompt` | Behavior when clicking a `[[wikilink]]` to a missing note: `prompt` (ask before creating), `auto` (create silently and open), or `never` (do nothing). Non-`.md` wikilinks are never auto-created. |
 | `markdownLoom.newFileLocation` | `workspaceRoot` | Where click-to-create writes a new file: `workspaceRoot` (workspace folder root of the source note, default), `sameFolderAsActive` (next to the file containing the clicked link; falls back to the workspace root for untitled buffers), or `customPath` (use `markdownLoom.newFileCustomPath`). In a multi-root workspace the destination is resolved against the source note's workspace folder. |
 | `markdownLoom.newFileCustomPath` | `""` | Workspace-relative directory used when `markdownLoom.newFileLocation` is `customPath`. Intermediate folders are created as needed. Absolute paths or paths that escape the workspace folder fall back to the workspace folder root. |
+| `markdownLoom.indexStatusSampleSize` | `10` | Number of indexed note paths shown as a sample in the **Show Index Status** command output. |
 
 ## Keyboard shortcuts
 
