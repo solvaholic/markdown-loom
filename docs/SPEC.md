@@ -105,15 +105,12 @@ Legal forms (current):
 - `[[Note Name]]` - link to `Note Name.md`.
 - `[[Note Name|Stacey]]` - link to `Note Name.md`, rendered as
   `Stacey`.
-
-Legal forms (planned, see [Roadmap](#roadmap)):
-
 - `[[Note Name#Heading]]` - link to a heading inside `Note Name.md`.
 - `[[Note Name#Heading|Stacey]]` - same, with display alias.
 - `[[Note Name#^blockid]]` - link to an Obsidian-style block
-  reference. Phase B.
+  reference.
 - `[[Some File.pdf]]` - link to a non-`.md` attachment by full
-  basename (extension included). Shipped; see
+  basename (extension included). See
   [`markdownLoom.attachmentExtensions`](#configuration-schema).
 
 Not legal (treated as plain text, not as wikilinks):
@@ -208,9 +205,10 @@ visible without clicking each link.
   message; re-invoking after fixing or breaking links reflects the new
   state.
 
-## Roadmap
+## Shipped
 
-In priority order:
+These items were on the roadmap and have since shipped. The design
+notes are retained for rationale and acceptance criteria.
 
 ### Section references (Phase A: headings)
 
@@ -299,34 +297,10 @@ opens it via the OS / VS Code default handler.
   (unchanged); the same-folder tiebreaker applies to non-`.md`
   collisions; non-`.md` resolution is case-insensitive on basename.
 
-### Drag-and-drop file insertion
-
-Dragging a file from Finder or the VS Code Explorer into an open
-markdown editor copies the file into a configurable attachments
-folder and inserts a wikilink to it at the drop position.
-
-- **API**: `vscode.languages.registerDocumentDropEditProvider`
-  consuming `text/uri-list` MIME data.
-- **Destination**: configurable via
-  `markdownLoom.attachmentsFolder` with options:
-  - `sameFolderAsActive` (default) - alongside the active note.
-  - `workspaceRoot` - at the workspace folder root.
-  - `customPath` - a workspace-relative path from
-    `markdownLoom.attachmentsCustomPath`.
-- **Collision handling**: never overwrite. If `name.pdf` exists,
-  write `name-1.pdf`, `name-2.pdf`, etc.
-- **Insertion**: insert `[[<basename>.<ext>]]` (relying on the
-  non-markdown wikilink work above to resolve it).
-- **Acceptance**: dropping `Some File.pdf` from Finder copies it to
-  the configured folder, inserts `[[Some File.pdf]]`, and Cmd+Click
-  opens the copied file; existing files are never overwritten;
-  dropping a non-file (e.g., URL) falls through to VS Code's default
-  drop behavior.
-
 ### Configurable click-to-create behavior
 
-Replace the current "Create note?" prompt on click-to-missing with a
-user-selectable policy.
+Click-to-missing behavior is user-selectable rather than a fixed
+"Create note?" prompt.
 
 - **Setting**: `markdownLoom.createMissingNoteOnClick` enum:
   - `prompt` (default - current behavior).
@@ -348,8 +322,9 @@ user-selectable policy.
 
 ### Configurable new-file location
 
-Today, click-to-create writes the new file at the workspace folder
-root. Make the destination configurable.
+The destination for click-to-create is configurable; the default
+(`workspaceRoot`) preserves the original behavior of writing at the
+workspace folder root.
 
 - **Setting**: `markdownLoom.newFileLocation` enum:
   - `workspaceRoot` (default - current behavior).
@@ -362,6 +337,42 @@ root. Make the destination configurable.
   places the new file next to the file containing the clicked link;
   `customPath` honors a workspace-relative directory and creates
   intermediate folders as needed.
+
+## Roadmap
+
+In priority order. Detailed design notes for each item live in its
+tracking issue.
+
+### Attachment insertion (drag/drop, rescoped to paste-first)
+
+**Status: in progress, rescoped.** Tracked in issue #23. An earlier
+drag-from-Finder attempt (PR #36) hit a VS Code constraint: the
+workbench's "open dropped file as editor" handler runs before any
+`DocumentDropEditProvider`, so plain drag-from-Finder is unreachable.
+The work was rescoped to lead with **paste**, which avoids that
+problem and matches the dominant Obsidian gesture (paste a
+screenshot, paste a Finder copy of a PDF). The destination,
+collision, and insertion design below still applies to the paste
+path.
+
+Pasting (or dropping, where reachable) a file into an open markdown
+editor copies the file into a configurable attachments folder and
+inserts a wikilink to it at the insertion point.
+
+- **Spike first**: VS Code core already handles paste/drop of
+  *images* via `markdown.copyFiles.destination` and
+  `markdown.copyFiles.overwriteBehavior`. Determine what core covers
+  for non-image files before writing provider code.
+- **Destination**: configurable via `markdownLoom.attachmentsFolder`
+  with options:
+  - `sameFolderAsActive` (default) - alongside the active note.
+  - `workspaceRoot` - at the workspace folder root.
+  - `customPath` - a workspace-relative path from
+    `markdownLoom.attachmentsCustomPath`.
+- **Collision handling**: never overwrite. If `name.pdf` exists,
+  write `name-1.pdf`, `name-2.pdf`, etc.
+- **Insertion**: insert `[[<basename>.<ext>]]`, resolved by the
+  shipped non-markdown wikilink support.
 
 ### Preview click-to-create (deferred)
 
@@ -414,6 +425,10 @@ just less convenient than a working preview click would be.
 
 ### Recommended companion extensions
 
+**Status: partially shipped.** The recommendation is documented in
+`README.md` ("Recommended companions"); wiring it into the extension
+manifest is tracked in issue #55.
+
 Markdown Loom should not reimplement markdown editing ergonomics that
 **Markdown All in One** (`yzhang.markdown-all-in-one`, MIT) already
 covers well: list continuation, tab indent/outdent in lists, toggle
@@ -454,12 +469,12 @@ markdown-loom/
 
 - `vscode.languages.registerCompletionItemProvider` - autocomplete
 - `vscode.languages.registerDefinitionProvider` - go to definition
-  (file and, for Phase A, heading line)
+  (file, heading line, and block id)
 - `vscode.window.createTreeView` - backlinks panel
 - `vscode.workspace.findFiles` - initial index build
 - `vscode.workspace.createFileSystemWatcher` - incremental index updates
 - `vscode.workspace.onWillRenameFiles` - return a `WorkspaceEdit` to
-  rewrite inbound links atomically with the rename (planned)
+  rewrite inbound links atomically with the rename
 - `markdown.markdownItPlugins` extension point - render `[[links]]`
   (and section refs) in preview
 
@@ -525,7 +540,7 @@ Planned settings (see [Roadmap](#roadmap)):
 
 - User can navigate between notes using `[[links]]` with zero config.
 - Section references (`[[Note#Heading]]`) scroll to the heading in
-  both editor and preview (Phase A).
+  both editor and preview.
 - Renaming a note in the VS Code Explorer updates inbound `[[links]]`
   in a single undoable step.
 - Extension activates only for markdown files.
