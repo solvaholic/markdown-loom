@@ -63,8 +63,7 @@ unit test that locks in the failure mode is a good idea before the fix.
 
 ## Cut the release
 
-Pick the right SemVer bump. Phase 1 milestones are minor bumps; bug-fix-only
-releases are patches.
+Pick the right SemVer bump. See [`docs/TRIAGE.md`](TRIAGE.md) for the full SemVer table.
 
 ```sh
 # 1. Bump version, commit, and tag in one step.
@@ -124,6 +123,10 @@ To re-record:
 
 Keep demos under ~30 seconds and the rendered GIF under ~1 MB - GitHub clamps
 inline animated images and the Marketplace is even pickier.
+
+## Issue tracking
+
+The issue-to-release mapping is covered without extra bookkeeping: each closed issue's timeline shows the PR that closed it, and that PR is listed in the release's auto-generated notes. Use a GitHub **Milestone per release** (it tracks issues and PRs together and surfaces on each one automatically) to group fixed issues by shipped version. See [`docs/TRIAGE.md`](TRIAGE.md) for the full triage process and label definitions.
 
 ## Lessons learned
 
