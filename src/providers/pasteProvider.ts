@@ -2,7 +2,7 @@ import * as path from 'path';
 import * as vscode from 'vscode';
 import {
   getNewFileLocationConfig,
-  resolveNewNoteDirectory,
+  NewFileLocationConfig,
 } from './linkCommands';
 
 /**
@@ -20,11 +20,18 @@ import {
  * without being intercepted by the workbench's "open dropped file as
  * editor" handler (see issue #23 and the closed PR #36).
  *
+ * Everything is resolved in URI space rather than via `file:` paths so
+ * the feature works in remote windows (Dev Containers, Codespaces, SSH,
+ * WSL). In those setups a file pasted from the local machine arrives as
+ * a `vscode-local:` URI while the workspace lives on `vscode-remote:`;
+ * the provider reads the source bytes and writes them into the
+ * workspace regardless of the schemes involved.
+ *
  * Collisions are never overwritten - `name.pdf` becomes `name-1.pdf`,
  * `name-2.pdf`, etc., and the final (suffixed) basename is the one
  * inserted. If the source file *is* the file already at the resolved
  * destination, no copy is made and the existing basename is used
- * verbatim. Non-`file:` payloads (URLs, plain text) and pastes into
+ * verbatim. Non-file payloads (URLs, plain text) and pastes into
  * documents outside any workspace folder fall through to VS Code's
  * default paste behavior.
  */
@@ -47,50 +54,44 @@ export class AttachmentPasteProvider
       return undefined;
     }
 
-    const fileUris = await collectPastedFileUris(dataTransfer);
+    const files = await collectPastedFiles(dataTransfer);
     if (token.isCancellationRequested) {
       return undefined;
     }
-    if (fileUris.length === 0) {
+    if (files.length === 0) {
       return undefined;
     }
 
-    const location = getNewFileLocationConfig();
-    const destDir = resolveNewNoteDirectory(
+    const destDirUri = resolveDestinationDirUri(
       workspaceFolder,
       document.uri,
-      location
+      getNewFileLocationConfig()
     );
 
-    await vscode.workspace.fs.createDirectory(vscode.Uri.file(destDir));
+    await vscode.workspace.fs.createDirectory(destDirUri);
 
     const insertedNames: string[] = [];
     // Track names allocated within this single paste so multi-file
     // pastes of the same basename don't collide with each other.
     const reserved = new Set<string>();
-    for (const sourceUri of fileUris) {
+    for (const file of files) {
       if (token.isCancellationRequested) {
         return undefined;
       }
-      const sourceFsPath = sourceUri.fsPath;
       const finalName = await allocateDestinationName(
-        destDir,
-        path.basename(sourceFsPath),
+        destDirUri,
+        file.name,
         reserved,
-        sourceFsPath
+        file.sourceUri
       );
-      const destPath = path.join(destDir, finalName);
-      const destUri = vscode.Uri.file(destPath);
+      const destUri = vscode.Uri.joinPath(destDirUri, finalName);
 
       // Skip the copy when the source already *is* the destination
       // file, so pasting a file from where it already lives in the
       // workspace links to the existing file rather than creating a
-      // `-1` duplicate. Case-insensitive comparison covers the default
-      // macOS/Windows filesystems.
-      if (!isSameFile(sourceFsPath, destPath)) {
-        await vscode.workspace.fs.copy(sourceUri, destUri, {
-          overwrite: false,
-        });
+      // `-1` duplicate.
+      if (!(file.sourceUri && isSameTarget(file.sourceUri, destUri))) {
+        await copyPastedFile(file, destUri);
       }
       reserved.add(finalName.toLowerCase());
       insertedNames.push(finalName);
@@ -108,6 +109,16 @@ export class AttachmentPasteProvider
     );
     return [edit];
   }
+}
+
+/** A file gathered from a paste, ready to copy into the workspace. */
+interface PastedFile {
+  /** Basename (with extension) to use at the destination. */
+  name: string;
+  /** Source URI, when the paste carried one (absent for raw clipboard bytes). */
+  sourceUri?: vscode.Uri;
+  /** Read the file's bytes, regardless of the source scheme. */
+  read(): Promise<Uint8Array>;
 }
 
 /**
@@ -151,55 +162,154 @@ export const PASTE_MIME_TYPES: readonly string[] = [
 ];
 
 /**
- * Collect `file:` URIs from any of the MIME shapes VS Code may use for
- * an editor paste. Reads `text/uri-list` first (the internal-copy
- * canonical), then the workbench's external uri-list, then falls back
- * to iterating `DataTransferFile` items for OS-level file pastes.
+ * Resolve the destination directory as a URI on the workspace folder's
+ * own scheme/authority, so attachments land in the right place in both
+ * local and remote (Dev Container, Codespaces, SSH, WSL) windows.
+ *
+ * Mirrors `resolveNewNoteDirectory` but stays in URI space and derives
+ * `sameFolderAsActive` from the active document's URI directly (rather
+ * than its `file:` path), which is what makes it correct under remote
+ * schemes.
  */
-async function collectPastedFileUris(
-  dataTransfer: vscode.DataTransfer
-): Promise<vscode.Uri[]> {
-  const seen = new Set<string>();
-  const uris: vscode.Uri[] = [];
-  const push = (uri: vscode.Uri | undefined): void => {
-    if (!uri || uri.scheme !== 'file') {
-      return;
+export function resolveDestinationDirUri(
+  workspaceFolder: vscode.WorkspaceFolder,
+  documentUri: vscode.Uri,
+  location: NewFileLocationConfig
+): vscode.Uri {
+  const rootUri = workspaceFolder.uri;
+  if (location.mode === 'sameFolderAsActive') {
+    // Parent folder of the active note, preserving scheme/authority.
+    return vscode.Uri.joinPath(documentUri, '..');
+  }
+  if (location.mode === 'customPath') {
+    const trimmed = (location.customPath ?? '').trim();
+    if (!trimmed || path.isAbsolute(trimmed)) {
+      return rootUri;
     }
-    const key = uri.fsPath;
+    const segments = trimmed.split(/[\\/]+/).filter((s) => s.length > 0);
+    // Refuse to escape the workspace folder.
+    if (segments.length === 0 || segments.includes('..')) {
+      return rootUri;
+    }
+    return vscode.Uri.joinPath(rootUri, ...segments);
+  }
+  return rootUri;
+}
+
+/**
+ * Copy a pasted file into the workspace. When the source and
+ * destination share a scheme and authority (the common local
+ * `file:` -> `file:` case), use the filesystem's native copy. Otherwise
+ * - e.g. a `vscode-local:` source pasted into a `vscode-remote:`
+ * workspace - read the bytes and write them across the bridge.
+ */
+async function copyPastedFile(
+  file: PastedFile,
+  destUri: vscode.Uri
+): Promise<void> {
+  const source = file.sourceUri;
+  if (
+    source &&
+    source.scheme === destUri.scheme &&
+    source.authority === destUri.authority
+  ) {
+    await vscode.workspace.fs.copy(source, destUri, { overwrite: false });
+    return;
+  }
+  const bytes = await file.read();
+  await vscode.workspace.fs.writeFile(destUri, bytes);
+}
+
+/**
+ * Gather pastable files from any of the shapes VS Code may use for an
+ * editor paste: `DataTransferFile` entries (OS pastes, which also carry
+ * the bytes directly) and `text/uri-list` /
+ * `application/vnd.code.uri-list` payloads. Web URLs and other
+ * non-readable URIs are filtered out by attempting to `stat` them, so a
+ * pasted link falls through to VS Code's default behavior. Schemes are
+ * not restricted to `file:` - `vscode-local:` and `vscode-remote:`
+ * sources are accepted so the feature works in remote windows.
+ */
+async function collectPastedFiles(
+  dataTransfer: vscode.DataTransfer
+): Promise<PastedFile[]> {
+  const files: PastedFile[] = [];
+  const seen = new Set<string>();
+
+  // DataTransferFile entries are the most reliable source for OS pastes:
+  // they expose the basename and the bytes without a second read.
+  const dataFiles: vscode.DataTransferFile[] = [];
+  dataTransfer.forEach((item) => {
+    const file = item.asFile?.();
+    if (file) {
+      dataFiles.push(file);
+    }
+  });
+  for (const file of dataFiles) {
+    const key = file.uri ? file.uri.toString() : `name:${file.name}`;
     if (seen.has(key)) {
-      return;
+      continue;
     }
     seen.add(key);
-    uris.push(uri);
-  };
+    files.push({
+      name: file.name,
+      sourceUri: file.uri,
+      read: () => Promise.resolve(file.data()),
+    });
+  }
 
   for (const mime of ['text/uri-list', 'application/vnd.code.uri-list']) {
     const item = dataTransfer.get(mime);
     if (!item) {
       continue;
     }
+    let raw: string;
     try {
-      const raw = await item.asString();
-      for (const uri of parseUriList(raw)) {
-        push(uri);
-      }
+      raw = await item.asString();
     } catch {
-      // Ignore unreadable entries; we may still pick up files below.
+      // Ignore unreadable entries; we may still have picked up files above.
+      continue;
+    }
+    for (const uri of parseUriList(raw)) {
+      const key = uri.toString();
+      if (seen.has(key)) {
+        continue;
+      }
+      // Only treat URIs that resolve to a readable file as pastable.
+      // This skips web URLs (no filesystem provider -> stat throws) and
+      // directories, both of which should fall through.
+      if (!(await isReadableFile(uri))) {
+        continue;
+      }
+      seen.add(key);
+      files.push({
+        name: basenameFromUri(uri),
+        sourceUri: uri,
+        read: () => Promise.resolve(vscode.workspace.fs.readFile(uri)),
+      });
     }
   }
 
-  // External OS pastes (Finder, Explorer) expose each file as a
-  // DataTransferItem whose asFile() returns a DataTransferFile with a
-  // populated `uri`. Iterate the whole transfer to be robust to the
-  // exact MIME key (some builds key by extension, some by `files`).
-  dataTransfer.forEach((item) => {
-    const file = item.asFile?.();
-    if (file?.uri) {
-      push(file.uri);
-    }
-  });
+  return files;
+}
 
-  return uris;
+/**
+ * True when `uri` points at a readable file on some registered
+ * filesystem. Web URLs (`http`/`https`/`mailto`/...) have no provider
+ * and throw; directories are rejected so only files are pasted.
+ */
+async function isReadableFile(uri: vscode.Uri): Promise<boolean> {
+  try {
+    const stat = await vscode.workspace.fs.stat(uri);
+    return (stat.type & vscode.FileType.Directory) === 0;
+  } catch {
+    return false;
+  }
+}
+
+/** Basename (with extension) from a URI's POSIX path. */
+function basenameFromUri(uri: vscode.Uri): string {
+  return path.posix.basename(uri.path);
 }
 
 /**
@@ -233,41 +343,41 @@ export function parseUriList(raw: string): vscode.Uri[] {
 }
 
 /**
- * Case-insensitive same-file comparison appropriate for the default
- * macOS/Windows filesystems. Linux is case-sensitive; in the worst
- * case the comparison is conservative (we may treat two different
- * files as same and skip a copy) but in practice the source path
- * equals the candidate destination path exactly.
+ * Case-insensitive same-target comparison for two URIs on the default
+ * macOS/Windows filesystems. URIs on different schemes or authorities
+ * are never the same target (e.g. a `vscode-local:` source can never
+ * equal a `vscode-remote:` destination).
  */
-function isSameFile(a: string, b: string): boolean {
-  const ra = path.resolve(a);
-  const rb = path.resolve(b);
-  if (ra === rb) {
+function isSameTarget(a: vscode.Uri, b: vscode.Uri): boolean {
+  if (a.scheme !== b.scheme || a.authority !== b.authority) {
+    return false;
+  }
+  if (a.path === b.path) {
     return true;
   }
   if (process.platform === 'darwin' || process.platform === 'win32') {
-    return ra.toLowerCase() === rb.toLowerCase();
+    return a.path.toLowerCase() === b.path.toLowerCase();
   }
   return false;
 }
 
 /**
- * Pick a filename in `destDir` that does not exist on disk and is not
- * already reserved by an earlier file in this paste. Collision suffixes
- * are `-1`, `-2`, ... inserted before the extension, matching the
- * pattern in the issue's acceptance criteria.
+ * Pick a filename in `destDirUri` that does not exist and is not already
+ * reserved by an earlier file in this paste. Collision suffixes are
+ * `-1`, `-2`, ... inserted before the extension, matching the pattern in
+ * the issue's acceptance criteria.
  *
- * When `sourceFsPath` is supplied and matches the candidate path
- * (case-insensitively on filesystems that are case-insensitive), the
- * candidate is treated as a no-op rather than a collision - pasting a
- * file from where it already lives in the workspace should never
- * produce a `-1` duplicate.
+ * When `sourceUri` is supplied and matches the candidate (same scheme,
+ * authority, and path, case-insensitively on case-insensitive
+ * filesystems), the candidate is treated as a no-op rather than a
+ * collision - pasting a file from where it already lives in the
+ * workspace should never produce a `-1` duplicate.
  */
 export async function allocateDestinationName(
-  destDir: string,
+  destDirUri: vscode.Uri,
   basename: string,
   reserved: ReadonlySet<string>,
-  sourceFsPath?: string
+  sourceUri?: vscode.Uri
 ): Promise<string> {
   const ext = path.extname(basename);
   const stem = ext ? basename.slice(0, -ext.length) : basename;
@@ -276,13 +386,13 @@ export async function allocateDestinationName(
   let counter = 0;
   while (true) {
     if (!reserved.has(candidate.toLowerCase())) {
-      const candidatePath = path.join(destDir, candidate);
+      const candidateUri = vscode.Uri.joinPath(destDirUri, candidate);
       try {
-        await vscode.workspace.fs.stat(vscode.Uri.file(candidatePath));
+        await vscode.workspace.fs.stat(candidateUri);
         // Existing file at the candidate path: if it *is* the source,
         // reuse the name as-is (no copy, no suffix). Otherwise this is
         // a real collision, fall through and bump the counter.
-        if (sourceFsPath && isSameFile(sourceFsPath, candidatePath)) {
+        if (sourceUri && isSameTarget(sourceUri, candidateUri)) {
           return candidate;
         }
       } catch {

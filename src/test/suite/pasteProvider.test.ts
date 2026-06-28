@@ -120,7 +120,7 @@ suite('allocateDestinationName', () => {
 
   test('returns the original name when nothing exists', async () => {
     const name = await allocateDestinationName(
-      tempBase.fsPath,
+      tempBase,
       'doc.pdf',
       new Set()
     );
@@ -137,7 +137,7 @@ suite('allocateDestinationName', () => {
       'x'
     );
     const name = await allocateDestinationName(
-      tempBase.fsPath,
+      tempBase,
       'doc.pdf',
       new Set()
     );
@@ -147,7 +147,7 @@ suite('allocateDestinationName', () => {
   test('honors reserved names from earlier files in the same paste', async () => {
     const reserved = new Set<string>(['doc.pdf']);
     const name = await allocateDestinationName(
-      tempBase.fsPath,
+      tempBase,
       'doc.pdf',
       reserved
     );
@@ -160,7 +160,7 @@ suite('allocateDestinationName', () => {
       'x'
     );
     const name = await allocateDestinationName(
-      tempBase.fsPath,
+      tempBase,
       'image.PNG',
       new Set()
     );
@@ -173,7 +173,7 @@ suite('allocateDestinationName', () => {
       'x'
     );
     const name = await allocateDestinationName(
-      tempBase.fsPath,
+      tempBase,
       'README',
       new Set()
     );
@@ -181,10 +181,10 @@ suite('allocateDestinationName', () => {
   });
 
   test('source-is-destination: returns original name (no -1 suffix)', async () => {
-    const existing = path.join(tempBase.fsPath, 'logo.png');
-    await writeTempFile(vscode.Uri.file(existing), 'x');
+    const existing = vscode.Uri.file(path.join(tempBase.fsPath, 'logo.png'));
+    await writeTempFile(existing, 'x');
     const name = await allocateDestinationName(
-      tempBase.fsPath,
+      tempBase,
       'logo.png',
       new Set(),
       existing
@@ -200,10 +200,10 @@ suite('allocateDestinationName', () => {
     const existing = path.join(tempBase.fsPath, 'Logo.png');
     await writeTempFile(vscode.Uri.file(existing), 'x');
     const name = await allocateDestinationName(
-      tempBase.fsPath,
+      tempBase,
       'Logo.png',
       new Set(),
-      existing.toLowerCase()
+      vscode.Uri.file(existing.toLowerCase())
     );
     assert.strictEqual(name, 'Logo.png');
   });
@@ -615,4 +615,103 @@ suite('AttachmentPasteProvider', () => {
       await tryDelete(dest);
     }
   });
+
+  test('cross-scheme source (e.g. vscode-local in a remote window) is copied into the workspace', async () => {
+    // Regression for the Dev Container case: a file pasted from the host
+    // arrives on a non-file scheme (vscode-local) while the workspace is
+    // file:. The provider must read the source across schemes and write
+    // it into the workspace rather than dropping it. We stand in an
+    // in-memory provider for the foreign scheme.
+    const registration = vscode.workspace.registerFileSystemProvider(
+      'loomtest',
+      new InMemoryFileSystemProvider(),
+      { isReadonly: true, isCaseSensitive: true }
+    );
+    const remoteSource = vscode.Uri.parse('loomtest:/Downloads/Remote File.pdf');
+    InMemoryFileSystemProvider.seed(
+      remoteSource,
+      new TextEncoder().encode('REMOTE-BYTES')
+    );
+    const docUri = uriFor('rootA', 'Index.md');
+    const document = await vscode.workspace.openTextDocument(docUri);
+    const dest = uriFor('rootA', 'Remote File.pdf');
+    await tryDelete(dest);
+
+    try {
+      const edit = await applyPaste(
+        { newFileLocation: 'workspaceRoot' },
+        document,
+        [remoteSource]
+      );
+      assert.ok(edit, 'expected an edit for a cross-scheme source');
+      assert.strictEqual(edit!.insertText, '[[Remote File.pdf]]');
+      // The bytes were read across schemes and written into the workspace.
+      assert.strictEqual(await readText(dest), 'REMOTE-BYTES');
+    } finally {
+      registration.dispose();
+      await tryDelete(dest);
+    }
+  });
 });
+
+/**
+ * Minimal in-memory read-only filesystem provider used to stand in for a
+ * foreign scheme (like `vscode-local:` in a remote window) so the
+ * cross-scheme copy path can be exercised in tests.
+ */
+class InMemoryFileSystemProvider implements vscode.FileSystemProvider {
+  private static store = new Map<string, Uint8Array>();
+
+  static seed(uri: vscode.Uri, data: Uint8Array): void {
+    InMemoryFileSystemProvider.store.set(uri.path, data);
+  }
+
+  private readonly emitter =
+    new vscode.EventEmitter<vscode.FileChangeEvent[]>();
+  readonly onDidChangeFile = this.emitter.event;
+
+  watch(): vscode.Disposable {
+    return new vscode.Disposable(() => undefined);
+  }
+
+  stat(uri: vscode.Uri): vscode.FileStat {
+    const data = InMemoryFileSystemProvider.store.get(uri.path);
+    if (!data) {
+      throw vscode.FileSystemError.FileNotFound(uri);
+    }
+    return {
+      type: vscode.FileType.File,
+      ctime: 0,
+      mtime: 0,
+      size: data.byteLength,
+    };
+  }
+
+  readFile(uri: vscode.Uri): Uint8Array {
+    const data = InMemoryFileSystemProvider.store.get(uri.path);
+    if (!data) {
+      throw vscode.FileSystemError.FileNotFound(uri);
+    }
+    return data;
+  }
+
+  readDirectory(): [string, vscode.FileType][] {
+    return [];
+  }
+
+  createDirectory(): void {
+    // no-op
+  }
+
+  writeFile(): void {
+    throw vscode.FileSystemError.NoPermissions('read-only');
+  }
+
+  delete(): void {
+    throw vscode.FileSystemError.NoPermissions('read-only');
+  }
+
+  rename(): void {
+    throw vscode.FileSystemError.NoPermissions('read-only');
+  }
+}

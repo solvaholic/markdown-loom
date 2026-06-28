@@ -385,6 +385,15 @@ screenshot, paste a Finder copy of a PDF).
 - **Insertion**: insert `[[<basename>.<ext>]]` (relying on the
   non-markdown wikilink resolution above). Multi-file pastes produce
   one wikilink per line.
+- **Remote windows**: everything is resolved in URI space, not via
+  `file:` paths, so the feature works in Dev Containers, Codespaces,
+  SSH, and WSL. In those setups a file pasted from the local machine
+  arrives as a `vscode-local:` URI while the workspace lives on
+  `vscode-remote:`; the provider reads the source bytes and writes them
+  into the workspace across the two schemes (a same-scheme paste uses
+  the filesystem's native copy). Scheme is not restricted to `file:` -
+  the earlier `file:`-only assumption silently dropped pastes in a Dev
+  Container, which is the project's default dev environment.
 - **Escape hatch**: `markdownLoom.attachments.paste.enabled` (default
   `true`). Set to `false` to fall through to VS Code's default paste
   behavior for files.
