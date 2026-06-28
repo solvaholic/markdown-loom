@@ -138,6 +138,21 @@ The two extensions coexist cleanly. Markdown Loom does not bundle or
 require Markdown All in One - it's a recommendation, not a
 dependency.
 
+### Task toggle: pick one
+
+Both extensions can toggle GFM checkboxes, and they behave differently:
+
+- **Markdown Loom** (`Ctrl`/`Cmd`+`Alt`+`T`) flips `[ ]`/`[x]` and
+  also stamps/strips `✅ YYYY-MM-DD` (when `autoAddDoneDate` is on),
+  preserving other Obsidian-Tasks emoji and `#tags`.
+- **Markdown All in One** (`Alt`+`C`, Windows/Linux only) does a plain
+  flip with no done-date awareness.
+
+So checking with `Alt`+`C` won't add the `✅` date, and unchecking a
+Loom-completed task with `Alt`+`C` leaves the `✅` date behind. If you
+want one consistent behavior, use Markdown Loom's toggle for tasks (or
+remap `Alt`+`C` to `markdownLoom.toggleTask` in your keybindings).
+
 ## Settings
 
 | Setting | Default | Description |

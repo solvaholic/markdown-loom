@@ -415,6 +415,33 @@ screenshot, paste a Finder copy of a PDF).
   `markdownLoom.attachments.paste.enabled` to `false` disables the
   behavior.
 
+### Recommended companion extensions
+
+**Status: shipped (issue #55).** The pairing is surfaced as a
+recommendation, not a bundle. There is no first-class manifest field
+for "a published extension softly recommends another," so the chosen
+mechanisms are: README prose ("Recommended companions") as the
+primary Marketplace-visible recommendation, plus the workspace
+recommendation in `.vscode/extensions.json` for contributors who
+clone this repo.
+
+Markdown Loom should not reimplement markdown editing ergonomics that
+**Markdown All in One** (`yzhang.markdown-all-in-one`, MIT) already
+covers well: list continuation, tab indent/outdent in lists, toggle
+bold/italic, table of contents, GFM checkbox toggle.
+
+Mechanism decision:
+
+- **Do not** declare `extensionPack` - it auto-installs the companion,
+  which contradicts the README's "recommendation, not a dependency"
+  framing. Rejected in favor of prose + workspace recommendation.
+- **Do not** declare `extensionDependencies` (would force install).
+- `configurationDefaults` deferred: the only genuine MAIO collision is
+  the `Alt+C` checkbox toggle (a keybinding, not a setting, so not
+  fixable via defaults), and MAIO path completion is off by default.
+  Documented in the README instead. Revisit only if a specific default
+  proves its worth; it stays additive and `semver:minor`.
+
 ## Roadmap
 
 In priority order. Detailed design notes for each item live in its
@@ -494,24 +521,6 @@ scratch):
 Defer until there's user demand. The current inert-href behavior is
 correct (no surprising dialog, no surprising file location); it's
 just less convenient than a working preview click would be.
-
-### Recommended companion extensions
-
-**Status: partially shipped.** The recommendation is documented in
-`README.md` ("Recommended companions"); wiring it into the extension
-manifest is tracked in issue #55.
-
-Markdown Loom should not reimplement markdown editing ergonomics that
-**Markdown All in One** (`yzhang.markdown-all-in-one`, MIT) already
-covers well: list continuation, tab indent/outdent in lists, toggle
-bold/italic, table of contents, GFM checkbox toggle.
-
-- **Recommendation mechanism**: declare an `extensionPack` or
-  `extensionRecommendations` contribution; document the pairing in
-  the README.
-- **Do not** declare `extensionDependencies` (would force install).
-- May ship `configurationDefaults` for sensible markdown defaults
-  if doing so doesn't override user choices.
 
 ## Technical Architecture
 
