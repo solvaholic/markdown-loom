@@ -5,7 +5,7 @@
   "version": "0.3.1",
   "publisher": "markdown-loom",
   "engines": {
-    "vscode": "^1.85.0"
+    "vscode": "^1.97.0"
   },
   "categories": [
     "Other"
@@ -181,6 +181,11 @@
             "wav"
           ],
           "markdownDescription": "File extensions (without leading dot) that are indexed for non-`.md` wikilink resolution. A `[[Name.pdf]]` wikilink resolves to any file named `Name.pdf` in the workspace. Changing this setting triggers an index rebuild."
+        },
+        "markdownLoom.attachments.paste.enabled": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Insert a `[[wikilink]]` when pasting one or more files into a markdown editor. Each pasted file is copied into the folder resolved from `#markdownLoom.newFileLocation#` and a `[[basename.ext]]` wikilink is inserted at the cursor. Set to `false` to fall through to VS Code's default paste behavior for files."
         }
       }
     }
@@ -193,7 +198,7 @@
     "@types/markdown-it": "^14.1.2",
     "@types/mocha": "^10.0.6",
     "@types/node": "^22.13.0",
-    "@types/vscode": "^1.85.0",
+    "@types/vscode": "^1.97.0",
     "@vscode/test-cli": "^0.0.4",
     "@vscode/test-electron": "^2.3.9",
     "@vscode/vsce": "^2.24.0",

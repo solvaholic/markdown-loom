@@ -338,41 +338,104 @@ workspace folder root.
   `customPath` honors a workspace-relative directory and creates
   intermediate folders as needed.
 
+### Paste-driven attachment insertion
+
+Pasting one or more files into a markdown editor copies each file into
+the destination folder resolved from `markdownLoom.newFileLocation`
+(the same policy click-to-create uses) and inserts a `[[basename.ext]]`
+wikilink at the cursor. Tracked in issue #23 (Phase 1).
+
+Paste is the primary attachment gesture. An earlier drag-from-Finder
+attempt (PR #36, closed) hit a VS Code constraint: the workbench's
+"open dropped file as editor" handler runs before any
+`DocumentDropEditProvider`, so plain drag-from-Finder is unreachable.
+Paste routes through a `DocumentPasteEditProvider` without that
+interception, and it matches the dominant Obsidian gesture (paste a
+screenshot, paste a Finder copy of a PDF).
+
+- **API**: `vscode.languages.registerDocumentPasteEditProvider` with
+  `pasteMimeTypes` of `text/uri-list`,
+  `application/vnd.code.uri-list`, and the catch-all `files`. Internal
+  copies (Explorer, search results) use `text/uri-list`; external OS
+  pastes (Finder, Windows Explorer) populate the
+  `application/vnd.code.uri-list` / `files` shapes, surfaced via
+  `DataTransferItem.asFile()`. The returned `DocumentPasteEdit`
+  carries a `title` ("Insert wikilink (Markdown Loom)") and a `kind`
+  (`markdown.link.wikilink`, a sibling of core's `markdown.link.*`
+  kinds) so VS Code's paste chooser surfaces it and `Configure
+  preferred paste action...` can target it. Without a `title` and
+  `kind` the chooser filters the edit out entirely. The kind is also
+  advertised via `providedPasteEditKinds` in the registration
+  metadata. **This requires VS Code >= 1.97**, where the paste API was
+  finalized; `engines.vscode` and `@types/vscode` are pinned
+  accordingly.
+- **Destination**: resolved from `markdownLoom.newFileLocation` and,
+  when `customPath`, `markdownLoom.newFileCustomPath`. A dedicated
+  `attachmentsFolder` setting is deliberately not introduced - one
+  location policy covers both new notes and pasted attachments. The
+  `attachments/` subfolder convention is available via `customPath`.
+- **Collision handling**: never overwrite. If `name.pdf` exists in the
+  destination, write `name-1.pdf`, `name-2.pdf`, etc., and insert a
+  wikilink to the suffixed basename. The same per-paste used-names set
+  prevents intra-paste collisions on a multi-file paste. When the
+  pasted source file *is* the file already at the resolved destination,
+  no copy is performed and no suffix is added - the existing basename
+  is used verbatim. Comparison is case-insensitive on the default
+  macOS/Windows filesystems.
+- **Insertion**: insert `[[<basename>.<ext>]]` (relying on the
+  non-markdown wikilink resolution above). Multi-file pastes produce
+  one wikilink per line.
+- **Escape hatch**: `markdownLoom.attachments.paste.enabled` (default
+  `true`). Set to `false` to fall through to VS Code's default paste
+  behavior for files.
+- **Fall-through**: non-file payloads (URLs, plain text) and pastes
+  into editors whose document is outside any workspace folder fall
+  through to VS Code's default paste behavior - no copy, no insert.
+- **Interaction with built-in providers**: VS Code ships built-in
+  paste edits (e.g. `Insert Image` for image data) for overlapping
+  mime types. When both apply, the paste chooser lets the user pick;
+  selecting "Insert wikilink (Markdown Loom)" as the preferred paste
+  action routes file pastes through this provider.
+- **Acceptance**: pasting `Some File.pdf` into a markdown editor
+  copies it to the folder resolved from `newFileLocation`, inserts
+  `[[Some File.pdf]]`, and Cmd+Click opens the copied file; existing
+  files are never overwritten (suffix on collision); a file already at
+  the destination is linked without duplication; multi-file pastes
+  insert one wikilink per line; pasting a non-file (e.g., a URL) or
+  pasting into a non-workspace document falls through; setting
+  `markdownLoom.attachments.paste.enabled` to `false` disables the
+  behavior.
+
 ## Roadmap
 
 In priority order. Detailed design notes for each item live in its
 tracking issue.
 
-### Attachment insertion (drag/drop, rescoped to paste-first)
+### Drag-and-drop attachment insertion (Phase 2, deferred)
 
-**Status: in progress, rescoped.** Tracked in issue #23. An earlier
-drag-from-Finder attempt (PR #36) hit a VS Code constraint: the
-workbench's "open dropped file as editor" handler runs before any
-`DocumentDropEditProvider`, so plain drag-from-Finder is unreachable.
-The work was rescoped to lead with **paste**, which avoids that
-problem and matches the dominant Obsidian gesture (paste a
-screenshot, paste a Finder copy of a PDF). The destination,
-collision, and insertion design below still applies to the paste
-path.
+**Status: deferred.** Tracked in issue #23 Phase 2. The paste path
+(shipped, see [Paste-driven attachment
+insertion](#paste-driven-attachment-insertion)) covers the primary
+attachment gesture. Drag-and-drop is a follow-up that reuses the same
+destination resolver and collision logic via a
+`DocumentDropEditProvider`.
 
-Pasting (or dropping, where reachable) a file into an open markdown
-editor copies the file into a configurable attachments folder and
-inserts a wikilink to it at the insertion point.
+Two known caveats from PR #36's drag attempt shape this work:
 
-- **Spike first**: VS Code core already handles paste/drop of
-  *images* via `markdown.copyFiles.destination` and
-  `markdown.copyFiles.overwriteBehavior`. Determine what core covers
-  for non-image files before writing provider code.
-- **Destination**: configurable via `markdownLoom.attachmentsFolder`
-  with options:
-  - `sameFolderAsActive` (default) - alongside the active note.
-  - `workspaceRoot` - at the workspace folder root.
-  - `customPath` - a workspace-relative path from
-    `markdownLoom.attachmentsCustomPath`.
-- **Collision handling**: never overwrite. If `name.pdf` exists,
-  write `name-1.pdf`, `name-2.pdf`, etc.
-- **Insertion**: insert `[[<basename>.<ext>]]`, resolved by the
-  shipped non-markdown wikilink support.
+- **Plain drag-from-Finder is unreachable.** VS Code's workbench "open
+  dropped file as editor" handler runs before any document drop
+  provider. Reaching the provider requires dropping from VS Code's own
+  Explorer, or holding **Shift** while dropping from Finder, then
+  picking "Insert wikilink (Markdown Loom)" via `Configure preferred
+  drop action...`. This is a VS Code constraint, not something a
+  provider can override.
+- **Self-collision on Explorer drags.** Dragging an in-workspace file
+  onto itself must not create a spurious `-1` copy; the shipped
+  `allocateDestinationName` source-is-destination check already handles
+  this and is reused as-is.
+
+The destination, collision, and insertion design match the paste path.
+Most of PR #36's provider code is reusable.
 
 ### Preview click-to-create (deferred)
 
@@ -477,6 +540,9 @@ markdown-loom/
   rewrite inbound links atomically with the rename
 - `markdown.markdownItPlugins` extension point - render `[[links]]`
   (and section refs) in preview
+- `vscode.languages.registerDocumentPasteEditProvider` - copy a pasted
+  file into the workspace and insert a wikilink (requires VS Code
+  >= 1.97)
 
 ### Configuration schema
 
@@ -520,6 +586,11 @@ markdown-loom/
     "type": "string",
     "default": "",
     "description": "Workspace-relative directory used when `markdownLoom.newFileLocation` is `customPath`. Intermediate folders are created as needed. Absolute paths or paths that escape the workspace folder fall back to the workspace folder root."
+  },
+  "markdownLoom.attachments.paste.enabled": {
+    "type": "boolean",
+    "default": true,
+    "description": "Insert a [[wikilink]] when pasting files into a markdown editor. Each pasted file is copied into the folder resolved from markdownLoom.newFileLocation and a [[basename.ext]] wikilink is inserted at the cursor. Set to false to fall through to VS Code's default paste behavior for files."
   }
 }
 ```
@@ -528,13 +599,10 @@ markdown-loom/
 in a future release: the Phase 2 task query work that motivated it is
 no longer planned.
 
-Planned settings (see [Roadmap](#roadmap)):
-
-- `markdownLoom.attachmentsFolder` (`sameFolderAsActive` |
-  `workspaceRoot` | `customPath`) - destination policy for
-  drag-and-drop attachments.
-- `markdownLoom.attachmentsCustomPath` (string) - workspace-relative
-  path used when `attachmentsFolder` is `customPath`.
+`markdownLoom.newFileLocation` and `markdownLoom.newFileCustomPath`
+also govern where pasted attachments are written; there is no separate
+`attachmentsFolder` setting. See [Paste-driven attachment
+insertion](#paste-driven-attachment-insertion).
 
 ## Success criteria
 

@@ -12,6 +12,11 @@ import { createRenameParticipant } from './providers/linkRenameHandler';
 import { IndexStatusBar } from './status/indexStatusBar';
 import { createShowIndexStatusCommand } from './commands/showIndexStatus';
 import { createShowUnresolvedWikilinksCommand } from './commands/showUnresolvedWikilinks';
+import {
+  AttachmentPasteProvider,
+  PASTE_MIME_TYPES,
+  WIKILINK_PASTE_EDIT_KIND,
+} from './providers/pasteProvider';
 
 export function activate(
   context: vscode.ExtensionContext
@@ -49,6 +54,17 @@ export function activate(
     vscode.languages.registerDocumentLinkProvider(
       { language: 'markdown', scheme: 'file' },
       documentLinkProvider
+    )
+  );
+
+  context.subscriptions.push(
+    vscode.languages.registerDocumentPasteEditProvider(
+      { language: 'markdown', scheme: 'file' },
+      new AttachmentPasteProvider(),
+      {
+        providedPasteEditKinds: [WIKILINK_PASTE_EDIT_KIND],
+        pasteMimeTypes: PASTE_MIME_TYPES,
+      }
     )
   );
 

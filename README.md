@@ -23,10 +23,11 @@ Shipped:
 - [x] Wikilinks to non-markdown files (`[[Some File.pdf]]`)
 - [x] Configurable click-to-create behavior (prompt / auto / never)
 - [x] Configurable new-note location
+- [x] Paste a file to copy it in and insert a wikilink
 
 Planned (in priority order):
 
-- [ ] Drag-and-drop file insertion (Finder → attachment + wikilink)
+- [ ] Drag-and-drop file insertion (deferred; see issue #23 Phase 2)
 
 The Phase 2 task query DSL and "Create task" command previously listed
 here are **out of scope**. See [Tasks (frozen)](#tasks-frozen) below.
@@ -48,6 +49,25 @@ here are **out of scope**. See [Tasks (frozen)](#tasks-frozen) below.
   wikilinks; use a plain markdown link `[label](./folder/Note.md)` when
   you need to point at a specific path. See `docs/SPEC.md` 'Wikilink
   target syntax' for the full rules.
+
+### Paste a file as an attachment
+
+- Copy a file in Finder (or the VS Code Explorer), then paste (`Cmd/Ctrl+V`)
+  into a markdown editor. The file is copied into your workspace and a
+  `[[basename.ext]]` wikilink is inserted at the cursor.
+- The copy destination is the same one click-to-create uses -
+  `markdownLoom.newFileLocation` (and `markdownLoom.newFileCustomPath`).
+  There's no separate attachments-folder setting.
+- Collisions are never overwritten: `report.pdf` becomes `report-1.pdf`,
+  `report-2.pdf`, and so on, and the wikilink points at the suffixed name.
+  Pasting a file that already lives at the destination links to it without
+  making a duplicate.
+- Paste several files at once and you get one wikilink per line.
+- VS Code shows a small paste chooser when more than one paste action
+  applies (for example, its built-in "Insert Image" for an image). Pick
+  **Insert wikilink (Markdown Loom)** once via *Configure preferred paste
+  action...* to make it the default.
+- Turn the whole behavior off with `markdownLoom.attachments.paste.enabled`.
 
 ### Backlinks panel
 
@@ -129,6 +149,7 @@ dependency.
 | `markdownLoom.createMissingNoteOnClick` | `prompt` | Behavior when clicking a `[[wikilink]]` to a missing note: `prompt` (ask before creating), `auto` (create silently and open), or `never` (do nothing). Non-`.md` wikilinks are never auto-created. |
 | `markdownLoom.newFileLocation` | `workspaceRoot` | Where click-to-create writes a new file: `workspaceRoot` (workspace folder root of the source note, default), `sameFolderAsActive` (next to the file containing the clicked link; falls back to the workspace root for untitled buffers), or `customPath` (use `markdownLoom.newFileCustomPath`). In a multi-root workspace the destination is resolved against the source note's workspace folder. |
 | `markdownLoom.newFileCustomPath` | `""` | Workspace-relative directory used when `markdownLoom.newFileLocation` is `customPath`. Intermediate folders are created as needed. Absolute paths or paths that escape the workspace folder fall back to the workspace folder root. |
+| `markdownLoom.attachments.paste.enabled` | `true` | Insert a `[[wikilink]]` when pasting files into a markdown editor. Each pasted file is copied into the folder resolved from `markdownLoom.newFileLocation` and a `[[basename.ext]]` wikilink is inserted at the cursor. Set to `false` to use VS Code's default paste behavior for files. |
 | `markdownLoom.indexStatusSampleSize` | `10` | Number of indexed note paths shown as a sample in the **Show Index Status** command output. |
 
 ## Keyboard shortcuts
