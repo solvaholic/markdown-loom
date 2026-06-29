@@ -4,6 +4,7 @@ import { NoteIndex } from './index/noteIndex';
 import { WikiLinkCompletionProvider } from './providers/linkCompletionProvider';
 import { WikiLinkDefinitionProvider } from './providers/linkDefinitionProvider';
 import { WikiLinkDocumentLinkProvider } from './providers/linkDocumentLinkProvider';
+import { WikiLinkHoverProvider } from './providers/linkHoverProvider';
 import { createWikiLinkCommandHandler } from './providers/linkCommands';
 import { WikiLinkRenderer } from './providers/linkRenderer';
 import { BacklinksProvider } from './providers/backlinksProvider';
@@ -31,6 +32,7 @@ export function activate(
   const completionProvider = new WikiLinkCompletionProvider(noteIndex);
   const definitionProvider = new WikiLinkDefinitionProvider(noteIndex);
   const documentLinkProvider = new WikiLinkDocumentLinkProvider(noteIndex);
+  const hoverProvider = new WikiLinkHoverProvider(noteIndex);
   const backlinksProvider = new BacklinksProvider(noteIndex);
   context.subscriptions.push(backlinksProvider);
 
@@ -54,6 +56,13 @@ export function activate(
     vscode.languages.registerDocumentLinkProvider(
       { language: 'markdown', scheme: 'file' },
       documentLinkProvider
+    )
+  );
+
+  context.subscriptions.push(
+    vscode.languages.registerHoverProvider(
+      { language: 'markdown', scheme: 'file' },
+      hoverProvider
     )
   );
 

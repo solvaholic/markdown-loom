@@ -38,8 +38,12 @@ before bumping the version.
    `test-fixtures/markdown-loom.code-workspace`.
 2. Open `rootA/Index.md`.
 3. **Editor side:**
-   - [ ] Cmd+Hover over `[[Notes]]` shows `Open note: Notes` (not
+   - [ ] Hover over `[[Notes]]` shows `Open note: Notes` (not
          `Execute command`).
+   - [ ] Hover over `[[Notes]]` also shows a rendered preview of
+         the note (heading + first paragraph). Hovering a missing note
+         or a `.pdf` attachment shows only the navigation tooltip, no
+         preview.
    - [ ] Cmd+Click on `[[Notes]]` opens `rootA/Notes.md`.
    - [ ] Cmd+Click on `[[Sibling]]` opens `rootB/Sibling.md` (cross-root via
          a basename that is unique to rootB).

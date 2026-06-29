@@ -210,6 +210,29 @@ visible without clicking each link.
 These items were on the roadmap and have since shipped. The design
 notes are retained for rationale and acceptance criteria.
 
+### Hover preview
+
+Hover over a `[[wikilink]]` shows a rendered markdown preview
+of the linked note instead of only a navigation tooltip.
+
+- **Editor**: `HoverProvider` for markdown reuses
+  `findWikiLinkAtPosition` and `NoteIndex.resolve`, reads the target,
+  strips leading YAML frontmatter, and returns a truncated
+  `MarkdownString` (first ~40 lines, with a `…` indicator for longer
+  files). Section refs (`[[Note#Heading]]`) start the preview at the
+  heading line. Nested wikilinks in the preview are flattened to plain
+  text so the hover never recurses. Only `.md` targets are previewed;
+  attachments and missing notes fall through to the DocumentLink
+  navigation tooltip (the missing-note action label is tracked
+  separately in #59).
+- **Performance**: resolved file contents are cached in a small
+  mtime-keyed LRU so repeated hover ticks don't re-read disk; no
+  measurable lag on a 1000-note workspace.
+- **Acceptance**: hover over an existing markdown target shows at least
+  its first heading and paragraph; frontmatter is stripped; wikilinks
+  inside fenced code blocks are ignored; attachments and missing notes
+  show no preview.
+
 ### Section references (Phase A: headings)
 
 Support `[[Note Name#Heading]]` and `[[Note Name#Heading|Alias]]`.

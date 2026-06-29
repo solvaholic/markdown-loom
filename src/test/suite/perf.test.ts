@@ -3,6 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';
 import { NoteIndex } from '../../index/noteIndex';
+import { WikiLinkHoverProvider } from '../../providers/linkHoverProvider';
 
 const PERF_DIR_NAME = 'perf-1000';
 const NOTE_COUNT = 1000;
@@ -84,5 +85,22 @@ suite('NoteIndex perf smoke (1000 notes)', function () {
       1,
       `Expected exactly 1 backlink, got ${back.length}`
     );
+  });
+
+  test('hover preview has no lag across 1000-note workspace', async () => {
+    const provider = new WikiLinkHoverProvider(index);
+    const start = Date.now();
+    for (let i = 0; i < 100; i += 1) {
+      const idx = (i % NOTE_COUNT) + 1;
+      const next = `note-${String((idx % NOTE_COUNT) + 1).padStart(4, '0')}`;
+      const doc = await vscode.workspace.openTextDocument({
+        language: 'markdown',
+        content: `# host\n\nLinks to [[${next}]].`,
+      });
+      const hover = await provider.provideHover(doc, new vscode.Position(2, 12));
+      assert.ok(hover, `expected hover for [[${next}]]`);
+    }
+    const elapsed = Date.now() - start;
+    assert.ok(elapsed < 2000, `100 hovers took ${elapsed}ms`);
   });
 });

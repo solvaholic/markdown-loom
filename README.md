@@ -16,6 +16,7 @@ Shipped:
 
 - [x] Wiki-style linking (`[[Note]]`, `[[Note|Alias]]`)
 - [x] Backlinks panel
+- [x] Hover preview of the linked note (`.md` targets)
 - [x] Task toggle with auto-stamped done date (frozen, see below)
 - [x] Section references (`[[Note#Heading]]`) in editor and preview
 - [x] Block references (`[[Note#^blockid]]`) in editor and preview
@@ -43,6 +44,9 @@ here are **out of scope**. See [Tasks (frozen)](#tasks-frozen) below.
 - Use `[[Note|Alias]]` to render `Alias` as the link text while still
   resolving to `Note.md`.
 - The Markdown preview pane renders `[[links]]` as clickable links.
+- Hover over a `[[link]]` to preview the linked note inline. Preview
+  is limited to markdown (`.md`) targets; attachments and missing notes
+  show only the navigation tooltip.
 - Clicking a link to a file that doesn't exist offers to create it.
 - Wikilink patterns inside fenced code blocks are ignored.
 - Path-style targets like `[[folder/Note]]` or `[[./Note]]` are not
