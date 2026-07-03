@@ -223,8 +223,8 @@ of the linked note instead of only a navigation tooltip.
   heading line. Nested wikilinks in the preview are flattened to plain
   text so the hover never recurses. Only `.md` targets are previewed;
   attachments and missing notes fall through to the DocumentLink
-  navigation tooltip (the missing-note action label is tracked
-  separately in #59).
+  navigation tooltip ("Create note: target" for missing notes,
+  "Open note: target" for non-markdown attachments).
 - **Performance**: resolved file contents are cached in a small
   mtime-keyed LRU so repeated hover ticks don't re-read disk; no
   measurable lag on a 1000-note workspace.

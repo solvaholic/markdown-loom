@@ -14,7 +14,10 @@ export class WikiLinkDocumentLinkProvider
 {
   constructor(private readonly index: NoteIndex) {}
 
-  provideDocumentLinks(document: vscode.TextDocument): WikiDocumentLink[] {
+  async provideDocumentLinks(
+    document: vscode.TextDocument
+  ): Promise<WikiDocumentLink[]> {
+    await this.index.ready();
     const links: WikiDocumentLink[] = [];
     for (let line = 0; line < document.lineCount; line += 1) {
       const lineText = document.lineAt(line).text;
@@ -32,7 +35,11 @@ export class WikiLinkDocumentLinkProvider
         // tooltip overrides the default "Execute command" / "Follow link"
         // hover text with something note-specific.
         const link = new vscode.DocumentLink(match.range) as WikiDocumentLink;
-        link.tooltip = `Open note: ${target}`;
+        const bare = target.replace(/\.md$/i, '');
+        const exists = this.index.resolve(bare, document.uri) !== null;
+        link.tooltip = exists
+          ? `Open note: ${target}`
+          : `Create note: ${target}`;
         link.wikiTarget = target;
         link.wikiSection = match.section;
         link.sourceUri = document.uri;
@@ -68,6 +75,7 @@ export class WikiLinkDocumentLinkProvider
       // Missing note: fall back to the command URI so the openWikiLink
       // handler can prompt the user to create it.
       link.target = createCommandUri(link.wikiTarget);
+      link.tooltip = `Create note: ${link.wikiTarget}`;
     }
     return link;
   }

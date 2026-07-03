@@ -34,7 +34,7 @@ suite('WikiLinkDocumentLinkProvider (alias coverage for #6)', () => {
     const doc = await vscode.workspace.openTextDocument(
       uriFor('rootA', 'Index.md')
     );
-    const links = provider.provideDocumentLinks(doc) ?? [];
+    const links = (await provider.provideDocumentLinks(doc)) ?? [];
     const aliased = links.find((l) => {
       const text = doc.getText(l.range);
       return text === '[[Foo|Local Foo]]';
@@ -56,10 +56,14 @@ suite('WikiLinkDocumentLinkProvider (alias coverage for #6)', () => {
       language: 'markdown',
       content: '[[does-not-exist|Missing]]\n'
     });
-    const links = provider.provideDocumentLinks(doc) ?? [];
+    const links = (await provider.provideDocumentLinks(doc)) ?? [];
     assert.strictEqual(links.length, 1);
     const link = links[0];
-    assert.strictEqual(link.tooltip, 'Open note: does-not-exist');
+    assert.strictEqual(
+      link.tooltip,
+      'Create note: does-not-exist',
+      'tooltip should say "Create note" for missing targets'
+    );
 
     const resolved = await provider.resolveDocumentLink(link);
     assert.ok(resolved.target);
@@ -94,7 +98,7 @@ suite('WikiLinkDocumentLinkProvider — section refs', () => {
       language: 'markdown',
       content: '[[Notes#Introduction]]\n'
     });
-    const links = provider.provideDocumentLinks(doc) ?? [];
+    const links = (await provider.provideDocumentLinks(doc)) ?? [];
     assert.strictEqual(links.length, 1);
     const link = links[0];
     assert.strictEqual(link.wikiTarget, 'Notes');
@@ -122,7 +126,7 @@ suite('WikiLinkDocumentLinkProvider — section refs', () => {
       language: 'markdown',
       content: '[[Notes#NoSuchHeading]]\n'
     });
-    const links = provider.provideDocumentLinks(doc) ?? [];
+    const links = (await provider.provideDocumentLinks(doc)) ?? [];
     assert.strictEqual(links.length, 1);
     const link = links[0];
     assert.strictEqual(link.wikiSection, 'NoSuchHeading');
