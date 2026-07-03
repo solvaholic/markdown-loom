@@ -198,7 +198,7 @@
     "@vscode/vsce": "^2.24.0",
     "eslint": "^9.39.4",
     "glob": "^10.3.10",
-    "mocha": "^10.3.0",
+    "mocha": "^11.7.6",
     "typescript": "^5.5.4",
     "typescript-eslint": "^8.62.0"
   }
