@@ -1,7 +1,7 @@
 {
   "name": "markdown-loom",
   "displayName": "Markdown Loom",
-  "description": "Plain-markdown note taking with wikilinks, backlinks, and tasks.",
+  "description": "Plain-markdown note taking in VS Code with wikilinks and backlinks.",
   "version": "0.3.1",
   "publisher": "markdown-loom",
   "engines": {
