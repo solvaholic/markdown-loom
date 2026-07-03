@@ -1,7 +1,7 @@
 {
   "name": "markdown-loom",
   "displayName": "Markdown Loom",
-  "description": "Plain-markdown note taking with wikilinks, backlinks, and tasks.",
+  "description": "Plain-markdown note taking with wikilinks and backlinks.",
   "version": "0.4.0",
   "publisher": "markdown-loom",
   "engines": {
