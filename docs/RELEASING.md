@@ -65,7 +65,17 @@ before bumping the version.
          navigation, no "create note" dialog). Click-to-create lives in
          the editor only; see README "Limitations".
    - [ ] Wikilinks inside fenced code blocks render as literal text.
-5. **Tasks:** open a file with `- [ ] task`, hit `Cmd+Alt+T`, confirm the
+5. **Attachment paste:** copy a file (e.g. a PNG from Finder or the
+   VS Code Explorer) and paste into a `.md` editor.
+   - [ ] The file is copied into the workspace (destination governed by
+         `markdownLoom.newFileLocation`; default: workspace root).
+   - [ ] A `[[basename.ext]]` wikilink is inserted at the cursor.
+   - [ ] Pasting a file whose name already exists at the destination
+         gets a `-1` suffix (no overwrite).
+   - [ ] Setting `markdownLoom.attachments.paste.enabled` to `false`
+         makes Loom's paste action disappear, falling through to
+         VS Code's default paste.
+6. **Tasks:** open a file with `- [ ] task`, hit `Cmd+Alt+T`, confirm the
    line gets `✅ <today>` appended.
 
 If any of these fail, fix and re-run the checklist before continuing. A
