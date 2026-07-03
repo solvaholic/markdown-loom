@@ -108,12 +108,6 @@
           "default": "YYYY-MM-DD",
           "markdownDescription": "Reserved for future use. Task dates are always written in ISO 8601 (`YYYY-MM-DD`) per `docs/SPEC.md` to keep notes interoperable with Obsidian Tasks; alternative formats are not currently honored."
         },
-        "markdownLoom.queryLimitDefault": {
-          "type": "number",
-          "default": 50,
-          "minimum": 1,
-          "description": "Default maximum number of tasks returned by a `tasks` query block (Phase 2)."
-        },
         "markdownLoom.autoAddDoneDate": {
           "type": "boolean",
           "default": true,
