@@ -381,10 +381,15 @@ export class NoteIndex implements vscode.Disposable {
   }
 
   private registerNote(uri: vscode.Uri): void {
+    const key = uriKey(uri);
+    // Idempotent: skip if already registered to prevent duplicate
+    // basenameToKeys entries when watcher events race with rebuild().
+    if (this.notes.has(key)) {
+      return;
+    }
     const relativePath = this.getRelativePath(uri);
     const pathWithoutExt = relativePath.replace(/\.md$/i, '');
     const basename = pathWithoutExt.split('/').pop() ?? pathWithoutExt;
-    const key = uriKey(uri);
     this.notes.set(key, {
       uri,
       basename,
