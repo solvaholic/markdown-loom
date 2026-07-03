@@ -185,7 +185,7 @@
     }
   },
   "dependencies": {
-    "markdown-it": "^14.1.0"
+    "markdown-it": "^14.3.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",
