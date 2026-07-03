@@ -136,4 +136,31 @@ suite('WikiLink Parsing Tests', () => {
     assert.strictEqual(links.length, 1);
     assert.strictEqual(links[0].target, 'note');
   });
+
+  test('Target with single [...] group (#61)', () => {
+    const text = '[[Book [Translator].pdf]]';
+    const links = matchWikiLinks(text, 0);
+
+    assert.strictEqual(links.length, 1);
+    assert.strictEqual(links[0].target, 'Book [Translator].pdf');
+    assert.strictEqual(links[0].raw, '[[Book [Translator].pdf]]');
+  });
+
+  test('Target with brackets and alias (#61)', () => {
+    const text = '[[Book [Translator].pdf|Book]]';
+    const links = matchWikiLinks(text, 0);
+
+    assert.strictEqual(links.length, 1);
+    assert.strictEqual(links[0].target, 'Book [Translator].pdf');
+    assert.strictEqual(links[0].display, 'Book');
+  });
+
+  test('Adjacent links with brackets do not over-match (#61)', () => {
+    const text = '[[a]] [[b]]';
+    const links = matchWikiLinks(text, 0);
+
+    assert.strictEqual(links.length, 2);
+    assert.strictEqual(links[0].target, 'a');
+    assert.strictEqual(links[1].target, 'b');
+  });
 });

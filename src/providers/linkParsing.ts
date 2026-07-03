@@ -12,7 +12,7 @@ export interface WikiLinkMatch {
 }
 
 const fencedCodeBlockPattern = /(^|\n)(```|~~~)/g;
-const wikilinkPattern = /\[\[([^\]]+)\]\]/g;
+const wikilinkPattern = /\[\[((?:(?!\]\])[^\n])+)\]\]/g;
 
 /**
  * Split `Target#Section|Alias` into `{ target, section, display }`.

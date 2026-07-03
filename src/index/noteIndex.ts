@@ -70,7 +70,7 @@ export interface UnresolvedLink {
   preview: string;
 }
 
-const wikilinkPattern = /\[\[([^\]]+)\]\]/g;
+const wikilinkPattern = /\[\[((?:(?!\]\])[^\n])+)\]\]/g;
 const fencePattern = /^[ \t]{0,3}(```|~~~)/;
 const atxHeadingPattern = /^#{1,6}[ \t]+(.+?)[ \t]*(?:#+[ \t]*)?$/;
 // Trailing block id on a line: optional whitespace, `^`, then id chars,

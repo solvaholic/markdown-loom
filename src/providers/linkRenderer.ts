@@ -11,7 +11,7 @@ type LinkOpenRule = NonNullable<Renderer['rules']['link_open']>;
 // Anchored, non-global so each call is stateless. The previous /g pattern
 // shared lastIndex across markdown-it inline rule invocations, which made
 // later wikilinks in a document silently fail to render.
-const WIKILINK_AT_START = /^\[\[([^\]\n]+)\]\]/;
+const WIKILINK_AT_START = /^\[\[((?:(?!\]\])[^\n])+)\]\]/;
 
 const WIKI_TARGET_ATTR = 'data-wikilink';
 const WIKI_SECTION_ATTR = 'data-wikilink-section';
