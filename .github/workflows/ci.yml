@@ -47,5 +47,8 @@ jobs:
       - name: Install npm dependencies
         run: npm ci
 
+      - name: Compile extension
+        run: npm run compile
+
       - name: Verify VSIX packaging
         run: npx vsce package --no-git-tag-version
