@@ -138,11 +138,17 @@ Resolution rules:
 
 - Show all files that link **to** the current file.
 - Update dynamically when switching files.
+- Reflect **unsaved edits**: typing `[[Target]]` in an open buffer
+  registers as a backlink on `Target` without waiting for a save. The
+  index also tracks live buffer edits (debounced), not just on-disk
+  changes and saves. Abandoning edits by closing without saving
+  restores the on-disk state.
 - Display as a tree view in the Explorer sidebar.
 - **Acceptance**: Refreshes within 300 ms after file save or switch;
-  displays count label ("Referenced in N notes"); ignores matches
-  inside fenced code blocks; shows ambiguous (non-winner) backlinks
-  with a warning marker.
+  reflects wikilinks added or removed in an unsaved buffer shortly
+  after typing; displays count label ("Referenced in N notes"); ignores
+  matches inside fenced code blocks; shows ambiguous (non-winner)
+  backlinks with a warning marker.
 
 ### 3. Tasks (frozen)
 

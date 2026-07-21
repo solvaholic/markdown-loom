@@ -70,6 +70,13 @@ export interface UnresolvedLink {
   preview: string;
 }
 
+/**
+ * How long to wait after the last edit to an open buffer before re-indexing it.
+ * Coalesces rapid typing into a single re-index. Kept below the 300 ms backlinks
+ * refresh acceptance (docs/SPEC.md §2) so live edits still feel responsive.
+ */
+const LIVE_INDEX_DEBOUNCE_MS = 250;
+
 const wikilinkPattern = /\[\[((?:(?!\]\])[^\n])+)\]\]/g;
 const fencePattern = /^[ \t]{0,3}(```|~~~)/;
 const atxHeadingPattern = /^#{1,6}[ \t]+(.+?)[ \t]*(?:#+[ \t]*)?$/;
@@ -213,6 +220,8 @@ export class NoteIndex implements vscode.Disposable {
   private readonly blockIds = new Map<string, BlockIdInfo[]>();
   private readonly backlinks = new Map<string, Map<string, BacklinkLocation[]>>();
   private readonly disposables: vscode.Disposable[] = [];
+  /** Pending debounced live-buffer re-index timers, keyed by {@link uriKey}. */
+  private readonly liveChangeDebounce = new Map<string, NodeJS.Timeout>();
   private readonly _onDidChangeIndex = new vscode.EventEmitter<void>();
   readonly onDidChangeIndex = this._onDidChangeIndex.event;
   private readonly _onWillRebuildIndex = new vscode.EventEmitter<void>();
@@ -245,6 +254,16 @@ export class NoteIndex implements vscode.Disposable {
           this.handleFileTouched(doc.uri, false, doc.getText());
         }
       }),
+      // Live-buffer edits: reflect unsaved wikilink changes in the index
+      // (debounced) so backlinks don't wait for a save. See issue #42.
+      vscode.workspace.onDidChangeTextDocument((e) =>
+        this.handleDocumentChanged(e.document)
+      ),
+      // Abandoning edits by closing without saving must restore the on-disk
+      // state, so re-sync any indexed note from disk when its buffer closes.
+      vscode.workspace.onDidCloseTextDocument((doc) =>
+        this.handleDocumentClosed(doc)
+      ),
       vscode.workspace.onDidChangeConfiguration((e) => {
         if (e.affectsConfiguration('markdownLoom.attachmentExtensions')) {
           this.scheduleRebuild();
@@ -254,6 +273,10 @@ export class NoteIndex implements vscode.Disposable {
   }
 
   dispose(): void {
+    for (const timer of this.liveChangeDebounce.values()) {
+      clearTimeout(timer);
+    }
+    this.liveChangeDebounce.clear();
     for (const d of this.disposables) {
       d.dispose();
     }
@@ -311,7 +334,7 @@ export class NoteIndex implements vscode.Disposable {
         if (myGeneration !== this.generation) {
           return;
         }
-        const text = await readFileText(file);
+        const text = await readTextForUri(file);
         if (myGeneration !== this.generation) {
           return;
         }
@@ -505,7 +528,7 @@ export class NoteIndex implements vscode.Disposable {
     if (isCreate || !wasIndexed) {
       this.registerNote(uri);
     }
-    const text = knownText ?? (await readFileText(uri));
+    const text = knownText ?? (await readTextForUri(uri));
     const links = extractWikiLinksFromText(text);
     const fileHeadings = extractHeadingsFromText(text);
     const fileBlockIds = extractBlockIdsFromText(text);
@@ -524,6 +547,70 @@ export class NoteIndex implements vscode.Disposable {
       }
     }
     this._onDidChangeIndex.fire();
+  }
+
+  /**
+   * React to a live edit in an open text buffer. Debounced per document so a
+   * burst of keystrokes coalesces into a single re-index. Only file-scheme
+   * markdown documents that are already indexed or live inside a workspace
+   * folder are considered, so scratch `.md` files opened outside the vault
+   * don't pollute the index.
+   */
+  private handleDocumentChanged(doc: vscode.TextDocument): void {
+    if (!this.shouldIndexDocument(doc)) {
+      return;
+    }
+    const key = uriKey(doc.uri);
+    const existing = this.liveChangeDebounce.get(key);
+    if (existing) {
+      clearTimeout(existing);
+    }
+    this.liveChangeDebounce.set(
+      key,
+      setTimeout(() => {
+        this.liveChangeDebounce.delete(key);
+        // The document may have closed during the debounce window; the close
+        // handler re-syncs from disk in that case, so skip here.
+        if (doc.isClosed) {
+          return;
+        }
+        void this.handleFileTouched(doc.uri, false, doc.getText());
+      }, LIVE_INDEX_DEBOUNCE_MS)
+    );
+  }
+
+  /**
+   * When an indexed note's buffer closes, re-sync it from disk. This discards
+   * any unsaved edits that were reflected in the index while the buffer was
+   * open (e.g. the user closed without saving), restoring the on-disk state.
+   */
+  private handleDocumentClosed(doc: vscode.TextDocument): void {
+    if (doc.uri.scheme !== 'file' || !isMarkdown(doc.uri)) {
+      return;
+    }
+    const key = uriKey(doc.uri);
+    const pending = this.liveChangeDebounce.get(key);
+    if (pending) {
+      clearTimeout(pending);
+      this.liveChangeDebounce.delete(key);
+    }
+    if (!this.notes.has(key)) {
+      return;
+    }
+    void this.handleFileTouched(doc.uri, false);
+  }
+
+  private shouldIndexDocument(doc: vscode.TextDocument): boolean {
+    if (doc.uri.scheme !== 'file') {
+      return false;
+    }
+    if (doc.languageId !== 'markdown' && !isMarkdown(doc.uri)) {
+      return false;
+    }
+    return (
+      this.notes.has(uriKey(doc.uri)) ||
+      vscode.workspace.getWorkspaceFolder(doc.uri) !== undefined
+    );
   }
 
   private async handleFileDeleted(uri: vscode.Uri): Promise<void> {
@@ -911,4 +998,26 @@ async function readFileText(uri: vscode.Uri): Promise<string> {
   } catch {
     return '';
   }
+}
+
+/**
+ * Return the current text for a note, preferring an open editor buffer over the
+ * on-disk copy. This keeps a full rebuild (or a disk-driven change event)
+ * consistent with unsaved edits, so re-indexing never clobbers live buffer
+ * state that the change handler has already reflected.
+ */
+async function readTextForUri(uri: vscode.Uri): Promise<string> {
+  const open = findOpenDocument(uri);
+  if (open && !open.isClosed) {
+    return open.getText();
+  }
+  return readFileText(uri);
+}
+
+/** Find an open, file-scheme text document matching `uri`, if any. */
+function findOpenDocument(uri: vscode.Uri): vscode.TextDocument | undefined {
+  const key = uriKey(uri);
+  return vscode.workspace.textDocuments.find(
+    (d) => d.uri.scheme === 'file' && uriKey(d.uri) === key
+  );
 }
