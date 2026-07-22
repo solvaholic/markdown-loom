@@ -12,12 +12,14 @@ steps is how we end up with a release whose demo GIF doesn't render (see
       shipping. If the README embeds assets (GIFs, screenshots), confirm the
       asset files are committed *and* the URLs you'll use will resolve for
       anonymous viewers.
-- [ ] **Currency check.** Beyond the docs check above, confirm the repo's
-      *config* matches what it ships: settings and agent-instruction files don't
-      assert a mode the repo isn't actually in (e.g. an editor config claiming
-      ESLint "flat-config mode" while the on-disk config is still legacy
-      eslintrc), no superseded config or stray generated artifacts linger, and
-      version strings agree across `package.json` and any embedded references.
+- [ ] **Currency check.** Run `npm run currency-check` (also enforced in CI on
+      every PR). It confirms the repo's *config* matches what it ships: version
+      strings agree across `package.json` and `package-lock.json`, ESLint is
+      actually in flat-config mode (a flat `eslint.config.*` exists with no
+      legacy `.eslintrc*` lingering), and no superseded config or stray
+      generated artifacts are tracked. The script encodes the mechanically
+      verifiable checks; still eyeball anything it can't (e.g. embedded version
+      references in prose docs).
 - [ ] **Repo visibility.** If the repo is private, `raw.githubusercontent.com`
       URLs return 404 for the Marketplace listing and for unauthenticated
       release-notes viewers. Either make the repo public before tagging, or
