@@ -70,7 +70,7 @@ export class WikiLinkHoverProvider implements vscode.HoverProvider {
   }
 
   private async readPreviewSource(uri: vscode.Uri): Promise<string> {
-    let mtime = 0;
+    let mtime: number;
     try {
       mtime = (await vscode.workspace.fs.stat(uri)).mtime;
     } catch {
@@ -84,7 +84,7 @@ export class WikiLinkHoverProvider implements vscode.HoverProvider {
       this.cache.set(key, cached);
       return cached.text;
     }
-    let text = '';
+    let text: string;
     try {
       const bytes = await vscode.workspace.fs.readFile(uri);
       text = new TextDecoder('utf-8').decode(bytes.slice(0, MAX_PREVIEW_BYTES));
