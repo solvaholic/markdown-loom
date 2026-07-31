@@ -3,9 +3,11 @@ import * as path from 'path';
 import * as vscode from 'vscode';
 import {
   createMissingNote,
+  createWikiLinkCommandHandler,
   CreateMissingNotePolicy,
   NewFileLocationConfig,
 } from '../../providers/linkCommands';
+import { NoteIndex } from '../../index/noteIndex';
 
 function fixturePath(...parts: string[]): string {
   const folders = vscode.workspace.workspaceFolders ?? [];
@@ -268,5 +270,95 @@ suite('createMissingNote location', () => {
       assert.strictEqual(result.fsPath, expected.fsPath);
       await tryDelete(expected);
     }
+  });
+});
+
+// Covers the medium-confidence smoke check from #110: clicking a missing
+// wikilink (the markdownLoom.openWikiLink command) reads
+// markdownLoom.createMissingNoteOnClick and dispatches with that policy.
+// The `createMissingNote policy` suite above exercises createMissingNote in
+// isolation; this suite exercises the command-handler wiring end to end.
+suite('openWikiLink command wiring (#110)', () => {
+  let index: NoteIndex;
+
+  const originalShowInformationMessage = vscode.window.showInformationMessage;
+  let restorePolicy: (() => Promise<void>) | undefined;
+
+  suiteSetup(async () => {
+    index = new NoteIndex();
+    await index.ready();
+    // The handler reads document.uri from the active editor, so keep an
+    // indexed note open as the active editor for every test below.
+    const doc = await vscode.workspace.openTextDocument(uriFor('rootA', 'Index.md'));
+    await vscode.window.showTextDocument(doc);
+  });
+
+  suiteTeardown(() => {
+    index.dispose();
+  });
+
+  setup(async () => {
+    const conf = vscode.workspace.getConfiguration('markdownLoom');
+    const prev = conf.get<string>('createMissingNoteOnClick');
+    await conf.update(
+      'createMissingNoteOnClick',
+      'prompt',
+      vscode.ConfigurationTarget.Workspace
+    );
+    restorePolicy = async () => {
+      await conf.update(
+        'createMissingNoteOnClick',
+        prev,
+        vscode.ConfigurationTarget.Workspace
+      );
+    };
+  });
+
+  teardown(async () => {
+    (vscode.window as unknown as { showInformationMessage: unknown }).showInformationMessage =
+      originalShowInformationMessage;
+    if (restorePolicy) {
+      await restorePolicy();
+      restorePolicy = undefined;
+    }
+  });
+
+  test('policy=prompt, confirmed: prompts and creates the note', async () => {
+    const target = 'ClickWiringPromptYes';
+    const expected = uriFor('rootA', `${target}.md`);
+    await tryDelete(expected);
+    let prompted = false;
+    (vscode.window as unknown as { showInformationMessage: unknown }).showInformationMessage =
+      async () => {
+        prompted = true;
+        return 'Create';
+      };
+
+    await createWikiLinkCommandHandler(index)(target);
+
+    assert.ok(prompted, 'expected the click handler to prompt when policy=prompt');
+    const stat = await vscode.workspace.fs.stat(expected);
+    assert.strictEqual(stat.type, vscode.FileType.File);
+    await tryDelete(expected);
+  });
+
+  test('policy=prompt, dismissed: prompts and creates nothing', async () => {
+    const target = 'ClickWiringPromptNo';
+    const expected = uriFor('rootA', `${target}.md`);
+    await tryDelete(expected);
+    let prompted = false;
+    (vscode.window as unknown as { showInformationMessage: unknown }).showInformationMessage =
+      async () => {
+        prompted = true;
+        return undefined;
+      };
+
+    await createWikiLinkCommandHandler(index)(target);
+
+    assert.ok(prompted, 'expected the click handler to prompt when policy=prompt');
+    await assert.rejects(
+      async () => { await vscode.workspace.fs.stat(expected); },
+      'dismissing the prompt must not create the note'
+    );
   });
 });
