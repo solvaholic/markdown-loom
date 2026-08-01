@@ -186,7 +186,8 @@ that auto-stamped done date and leaves any other emoji or tags alone.
 
 ## Limitations
 
-- Untitled (unsaved) buffers are not indexed for completion or backlinks.
+- Notes are indexed for completion and backlinks after their first save to
+  disk, since a filename is required to link to them.
 - `[[link]]` resolution and backlink search use case-insensitive basename
   matching only; if multiple notes share a basename, navigation picks one
   via the same-folder tiebreaker and the others surface as ambiguous
