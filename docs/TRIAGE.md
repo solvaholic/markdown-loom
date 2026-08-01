@@ -60,8 +60,8 @@ From [`docs/RELEASING.md`](RELEASING.md):
 
 Milestones are **release trains, version-named** - not themed batches.
 
-- `v0.3.x` - the current patch line. Holds patch-level work (bug fixes, doc corrections, internal/CI) that ships in rolling patch cuts.
-- `v0.4.0` - the next minor. Park feature work here as it comes up.
+- `v0.4.x` - the current patch line. Holds patch-level work (bug fixes, doc corrections, internal/CI) that ships in rolling patch cuts.
+- `v0.5.x` - the next minor. Park feature work here as it comes up.
 
 Keep the *theme* on the epic issue, not the milestone name - a release train is heterogeneous. An issue shows both its milestone and its labels, so planning visibility doesn't suffer.
 
