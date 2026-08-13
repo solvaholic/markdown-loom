@@ -21,7 +21,7 @@ import {
 
 export function activate(
   context: vscode.ExtensionContext
-): { extendMarkdownIt(md: MarkdownIt): MarkdownIt } {
+): { extendMarkdownIt(md: MarkdownIt.MarkdownIt): MarkdownIt.MarkdownIt } {
   const noteIndex = new NoteIndex();
   context.subscriptions.push(noteIndex);
   // Kick off the initial scan immediately so the markdown preview renderer
@@ -119,7 +119,7 @@ export function activate(
   // top-level function. Returning it here is what actually wires the
   // wikilink renderer into the preview's markdown-it instance.
   return {
-    extendMarkdownIt(md: MarkdownIt): MarkdownIt {
+    extendMarkdownIt(md: MarkdownIt.MarkdownIt): MarkdownIt.MarkdownIt {
       return new WikiLinkRenderer(noteIndex).extendMarkdownIt(md);
     }
   };
