@@ -4,8 +4,8 @@ import MarkdownIt from 'markdown-it';
 import { NoteIndex, slugifyHeading } from '../index/noteIndex';
 import { parseWikiLinkBody } from './linkParsing';
 
-type Token = ReturnType<MarkdownIt['parse']>[number];
-type Renderer = MarkdownIt['renderer'];
+type Token = ReturnType<MarkdownIt.MarkdownIt['parse']>[number];
+type Renderer = MarkdownIt.MarkdownIt['renderer'];
 type LinkOpenRule = NonNullable<Renderer['rules']['link_open']>;
 
 // Anchored, non-global so each call is stateless. The previous /g pattern
@@ -47,7 +47,7 @@ function escapeRegex(s: string): string {
 export class WikiLinkRenderer {
   constructor(private readonly index?: NoteIndex) {}
 
-  extendMarkdownIt(md: MarkdownIt): MarkdownIt {
+  extendMarkdownIt(md: MarkdownIt.MarkdownIt): MarkdownIt.MarkdownIt {
     md.inline.ruler.before('link', 'wikilink', (state, silent) => {
       if (state.src.charCodeAt(state.pos) !== 0x5b /* [ */) {
         return false;
@@ -113,7 +113,7 @@ export class WikiLinkRenderer {
     const index = this.index;
     const wikiRule: LinkOpenRule = (tokens, idx, options, env, self) => {
       const token = tokens[idx];
-      const wikiTarget = token.attrGet(WIKI_TARGET_ATTR);
+      const wikiTarget = attrGetString(token, WIKI_TARGET_ATTR);
       if (wikiTarget) {
         applyWikiLinkResolution(token, wikiTarget, env, index);
       }
@@ -217,7 +217,7 @@ function applyWikiLinkResolution(
 ): void {
   const sourceUri = readSourceUri(env);
   // Read the optional section ref stored by the inline rule.
-  const section = token.attrGet(WIKI_SECTION_ATTR) ?? null;
+  const section = attrGetString(token, WIKI_SECTION_ATTR);
   if (!index) {
     setOrAppendAttr(token, RESOLVED_VIA_ATTR, 'fallback-no-index');
     return;
@@ -293,6 +293,15 @@ function setOrAppendAttr(token: Token, name: string, value: string): void {
   } else {
     token.attrSet(name, value);
   }
+}
+
+// markdown-it 15 widened Token#attrGet to `string | number | null` (it now
+// also supports numeric attribute values elsewhere in the API). Every
+// wikilink attribute we read here was written by this file as a string, so
+// coerce defensively rather than relaxing our own types to `string | number`.
+function attrGetString(token: Token, name: string): string | null {
+  const value = token.attrGet(name);
+  return value === null ? null : String(value);
 }
 
 // VS Code's markdown preview passes the source document's URI through
