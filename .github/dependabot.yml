@@ -15,6 +15,15 @@ updates:
         update-types:
           - minor
           - patch
+    ignore:
+      # @types/node major versions track Node.js major releases. Our CI
+      # workflows pin Node 22 (see .github/workflows/ci.yml), so jumping
+      # @types/node ahead to a newer major (e.g. 26.x, matching Node 26)
+      # just introduces type/runtime mismatches. Bump this deliberately,
+      # together with the CI Node version, instead of via Dependabot.
+      - dependency-name: "@types/node"
+        update-types:
+          - "version-update:semver-major"
 
   - package-ecosystem: github-actions
     directory: /
