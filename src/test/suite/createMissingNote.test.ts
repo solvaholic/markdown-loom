@@ -1,6 +1,7 @@
 import * as assert from 'assert';
 import * as path from 'path';
 import * as vscode from 'vscode';
+import { stubMarkdownLoomConfig, restoreConfigStub } from './configStub';
 import {
   createMissingNote,
   createWikiLinkCommandHandler,
@@ -298,19 +299,9 @@ suite('openWikiLink command wiring (#110)', () => {
   });
 
   setup(async () => {
-    const conf = vscode.workspace.getConfiguration('markdownLoom');
-    const prev = conf.get<string>('createMissingNoteOnClick');
-    await conf.update(
-      'createMissingNoteOnClick',
-      'prompt',
-      vscode.ConfigurationTarget.Workspace
-    );
+    stubMarkdownLoomConfig({ createMissingNoteOnClick: 'prompt' });
     restorePolicy = async () => {
-      await conf.update(
-        'createMissingNoteOnClick',
-        prev,
-        vscode.ConfigurationTarget.Workspace
-      );
+      restoreConfigStub();
     };
   });
 

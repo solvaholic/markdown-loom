@@ -1,6 +1,7 @@
 import * as assert from 'assert';
 import * as path from 'path';
 import * as vscode from 'vscode';
+import { stubMarkdownLoomConfig, restoreConfigStub } from './configStub';
 import {
   getNewFileLocationConfig,
   resolveNewNoteDirectory,
@@ -118,42 +119,8 @@ suite('resolveNewNoteDirectory parity with inline logic', () => {
 
 
 suite('getNewFileLocationConfig', () => {
-  // Stub vscode.workspace.getConfiguration so tests don't have to mutate
-  // (and persist) the real workspace settings file. We only intercept the
-  // 'markdownLoom' section; other sections pass through unchanged.
-  const originalGetConfiguration = vscode.workspace.getConfiguration;
-
-  function stubMarkdownLoomConfig(values: Record<string, unknown>): void {
-    (vscode.workspace as unknown as { getConfiguration: unknown }).getConfiguration =
-      ((section?: string, scope?: vscode.ConfigurationScope | null) => {
-        if (section !== 'markdownLoom') {
-          return originalGetConfiguration.call(
-            vscode.workspace,
-            section as string,
-            scope ?? null
-          );
-        }
-        const real = originalGetConfiguration.call(
-          vscode.workspace,
-          'markdownLoom',
-          scope ?? null
-        );
-        return {
-          ...real,
-          get<T>(key: string, defaultValue?: T): T {
-            if (Object.prototype.hasOwnProperty.call(values, key)) {
-              const v = values[key];
-              return (v === undefined ? defaultValue : v) as T;
-            }
-            return real.get(key, defaultValue as T);
-          },
-        } as vscode.WorkspaceConfiguration;
-      }) as typeof vscode.workspace.getConfiguration;
-  }
-
   teardown(() => {
-    (vscode.workspace as unknown as { getConfiguration: unknown }).getConfiguration =
-      originalGetConfiguration;
+    restoreConfigStub();
   });
 
   test('returns workspaceRoot defaults when nothing is configured', () => {

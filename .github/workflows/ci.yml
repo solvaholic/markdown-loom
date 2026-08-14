@@ -46,6 +46,15 @@ jobs:
       - name: Run tests (compile + lint + integration)
         run: xvfb-run -a npm test
 
+      - name: Verify test fixtures are unmodified
+        run: |
+          if [ -n "$(git status --porcelain test-fixtures/)" ]; then
+            echo "::error::The test suite modified committed test fixtures:"
+            git status --porcelain test-fixtures/
+            git --no-pager diff -- test-fixtures/
+            exit 1
+          fi
+
   package:
     runs-on: ubuntu-latest
     steps:
