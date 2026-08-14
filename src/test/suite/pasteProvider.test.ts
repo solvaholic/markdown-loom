@@ -1,6 +1,7 @@
 import * as assert from 'assert';
 import * as path from 'path';
 import * as vscode from 'vscode';
+import { stubMarkdownLoomConfig, restoreConfigStub } from './configStub';
 import {
   AttachmentPasteProvider,
   parseUriList,
@@ -56,19 +57,10 @@ async function applyPaste(
   document: vscode.TextDocument,
   sources: vscode.Uri[]
 ): Promise<vscode.DocumentPasteEdit | undefined> {
-  const conf = vscode.workspace.getConfiguration('markdownLoom');
-  const prevLoc = conf.get<string>('newFileLocation');
-  const prevCustom = conf.get<string>('newFileCustomPath');
-  await conf.update(
-    'newFileLocation',
-    cfg.newFileLocation ?? 'workspaceRoot',
-    vscode.ConfigurationTarget.Workspace
-  );
-  await conf.update(
-    'newFileCustomPath',
-    cfg.newFileCustomPath ?? '',
-    vscode.ConfigurationTarget.Workspace
-  );
+  stubMarkdownLoomConfig({
+    newFileLocation: cfg.newFileLocation ?? 'workspaceRoot',
+    newFileCustomPath: cfg.newFileCustomPath ?? '',
+  });
   try {
     const provider = new AttachmentPasteProvider();
     const result = await provider.provideDocumentPasteEdits(
@@ -80,16 +72,7 @@ async function applyPaste(
     );
     return result?.[0];
   } finally {
-    await conf.update(
-      'newFileLocation',
-      prevLoc,
-      vscode.ConfigurationTarget.Workspace
-    );
-    await conf.update(
-      'newFileCustomPath',
-      prevCustom,
-      vscode.ConfigurationTarget.Workspace
-    );
+    restoreConfigStub();
   }
 }
 
@@ -578,13 +561,7 @@ suite('AttachmentPasteProvider', () => {
   });
 
   test('disabled via setting: falls through', async () => {
-    const conf = vscode.workspace.getConfiguration('markdownLoom');
-    const prev = conf.get<boolean>('attachments.paste.enabled');
-    await conf.update(
-      'attachments.paste.enabled',
-      false,
-      vscode.ConfigurationTarget.Workspace
-    );
+    stubMarkdownLoomConfig({ 'attachments.paste.enabled': false });
     const docUri = uriFor('rootA', 'Index.md');
     const document = await vscode.workspace.openTextDocument(docUri);
     const source = vscode.Uri.file(path.join(sourceDir.fsPath, 'Disabled.pdf'));
@@ -607,11 +584,7 @@ suite('AttachmentPasteProvider', () => {
         await vscode.workspace.fs.stat(dest);
       });
     } finally {
-      await conf.update(
-        'attachments.paste.enabled',
-        prev,
-        vscode.ConfigurationTarget.Workspace
-      );
+      restoreConfigStub();
       await tryDelete(dest);
     }
   });
