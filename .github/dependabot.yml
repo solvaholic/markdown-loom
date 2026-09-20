@@ -24,6 +24,13 @@ updates:
       - dependency-name: "@types/node"
         update-types:
           - "version-update:semver-major"
+      # @types/vscode must not exceed engines.vscode: vsce rejects packages
+      # whose VS Code types require a newer editor than the extension supports.
+      # Raise both deliberately when increasing the minimum VS Code version.
+      - dependency-name: "@types/vscode"
+        update-types:
+          - "version-update:semver-minor"
+          - "version-update:semver-major"
 
   - package-ecosystem: github-actions
     directory: /
