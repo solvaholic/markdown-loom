@@ -31,6 +31,12 @@ updates:
         update-types:
           - "version-update:semver-minor"
           - "version-update:semver-major"
+      # @vscode/test-cli@0.0.15 still depends on Mocha 11, so Mocha 12
+      # installs a duplicate tree while the test runner continues using 11.
+      # Keep accepting Mocha 11 updates until the test CLI supports Mocha 12.
+      - dependency-name: mocha
+        update-types:
+          - "version-update:semver-major"
 
   - package-ecosystem: github-actions
     directory: /
