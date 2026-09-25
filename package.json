@@ -191,15 +191,15 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@types/mocha": "^10.0.6",
-    "@types/node": "^22.20.3",
+    "@types/node": "^22.20.4",
     "@types/vscode": "1.125.0",
     "@vscode/test-cli": "^0.0.15",
     "@vscode/test-electron": "^3.1.0",
     "@vscode/vsce": "^4.0.0",
-    "eslint": "^10.10.0",
+    "eslint": "^10.11.0",
     "glob": "^13.0.6",
     "mocha": "^11.8.0",
     "typescript": "^5.5.4",
-    "typescript-eslint": "^8.70.0"
+    "typescript-eslint": "^8.70.1"
   }
 }
