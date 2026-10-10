@@ -4,12 +4,14 @@
 // (.github/release.yml categories).
 //
 // Usage:
-//   node scripts/update-changelog.mjs [--force] [--changelog <path>]
+//   node scripts/update-changelog.mjs [--force] [--dry-run] [--version X.Y.Z]
+//                                     [--changelog <path>]
 //
-// Reads the new version from package.json, so run it after `npm version` has
-// bumped it. When run from the npm `version` lifecycle (see package.json) it
-// also stages CHANGELOG.md, and only that file, so the notes land in the
-// version commit that `npm version` creates and tags.
+// Reads the new version from package.json (override with --version, e.g. to
+// preview the next release), so run it after `npm version` has bumped it. When
+// run by `npm version` itself (see package.json) it also stages CHANGELOG.md,
+// and only that file, so the notes land in the version commit that npm creates
+// and tags. --dry-run prints the section and changes nothing.
 //
 // Idempotent: if CHANGELOG.md already has a section for the version it is left
 // unchanged; pass --force to regenerate it. Fails loudly (non-zero exit, no
@@ -183,10 +185,19 @@ function readChangelog(changelogPath) {
 }
 
 function parseArgs(argv) {
-  const opts = { force: false, changelog: join(repoRoot, "CHANGELOG.md") };
+  const opts = {
+    force: false,
+    dryRun: false,
+    version: null,
+    changelog: join(repoRoot, "CHANGELOG.md"),
+  };
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === "--force") {
       opts.force = true;
+    } else if (argv[i] === "--dry-run") {
+      opts.dryRun = true;
+    } else if (argv[i] === "--version" && argv[i + 1]) {
+      opts.version = argv[++i];
     } else if (argv[i] === "--changelog" && argv[i + 1]) {
       opts.changelog = resolve(argv[++i]);
     } else {
@@ -205,7 +216,7 @@ function localDate() {
 function main() {
   const opts = parseArgs(process.argv.slice(2));
   const pkg = JSON.parse(readFileSync(join(repoRoot, "package.json"), "utf8"));
-  const version = pkg.version;
+  const version = opts.version ?? pkg.version;
   const repo = parseRepoSlug(pkg.repository?.url);
 
   const current = readChangelog(opts.changelog);
@@ -220,12 +231,20 @@ function main() {
     const target = run("git", ["rev-parse", "HEAD"], { cwd: repoRoot }).trim();
     const body = fetchNotes({ repo, version, target, previousTag });
     const section = renderSection(version, localDate(), body);
+    if (opts.dryRun) {
+      console.log(section);
+      return;
+    }
     writeFileSync(opts.changelog, applySection(current, version, section));
     console.log(`CHANGELOG.md: wrote v${version} section (previous tag: ${previousTag ?? "none"}).`);
   }
 
-  // Stage only the changelog, and only when npm is mid-`npm version`.
-  if (process.env.npm_lifecycle_event === "version") {
+  // Stage only the changelog, and only inside a real `npm version` that will
+  // commit. `npm run version` and `--no-git-tag-version` must not touch the index.
+  const inNpmVersion =
+    process.env.npm_command === "version" &&
+    process.env.npm_config_git_tag_version !== "false";
+  if (inNpmVersion && !opts.dryRun) {
     run("git", ["add", "--", opts.changelog], { cwd: repoRoot });
     console.log("CHANGELOG.md: staged for the version commit.");
   }

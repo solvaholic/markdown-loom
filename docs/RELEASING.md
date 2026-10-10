@@ -168,7 +168,7 @@ After `gh release create`, open the release in the browser and:
 
 ## Release notes and changelog
 
-`CHANGELOG.md` and the GitHub Release body are both derived from GitHub's generated release notes, so neither needs separate authoring. PRs are grouped by the labels in `.github/release.yml` (a PR lands in the first category it matches, and anything unlabeled falls into "Other changes"). Fix a mis-categorized entry at the source by relabeling or retitling the PR on GitHub, not by hand-editing the output.
+`CHANGELOG.md` and the GitHub Release body are both derived from GitHub's generated release notes, so neither needs separate authoring. PRs are grouped by the labels in `.github/release.yml` (a PR lands in the first category it matches, and anything unlabeled falls into "Other changes"). Fix a mis-categorized entry at the source by relabeling or retitling the PR on GitHub, not by hand-editing the output. The two are generated separately (the changelog before the bump commit exists, the GitHub Release from the pushed tag), so they share categories but can differ slightly, for example the release PR itself may appear only in the Release body.
 
 `npm version` runs `scripts/update-changelog.mjs` through the `version` npm script, after `package.json` is bumped and before npm creates the commit and tag. The script:
 
@@ -178,7 +178,7 @@ After `gh release create`, open the release in the browser and:
 
 If the script fails, `npm version` stops after editing `package.json` and `package-lock.json` but before committing. Fix the cause (usually `gh auth login`, or pushing `main`), then discard the half-done bump with `git checkout -- package.json package-lock.json` and rerun `npm version`.
 
-To preview a section without bumping anything, run `npm run changelog` (it uses the version currently in `package.json`, writes `CHANGELOG.md`, and stages nothing; `git checkout -- CHANGELOG.md` undoes it).
+To preview the next section without bumping or writing anything, run `node scripts/update-changelog.mjs --dry-run --version X.Y.Z` (it prints the section to stdout). `npm run changelog` runs the same script for the version currently in `package.json`, writes `CHANGELOG.md`, and never stages it.
 
 If you do need to change the section after `npm version` but before pushing, edit `CHANGELOG.md`, then amend the bump commit and move the tag onto it. This is safe only because nothing has been pushed yet:
 
