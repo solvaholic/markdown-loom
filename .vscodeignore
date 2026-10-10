@@ -15,8 +15,12 @@ dist/test/**
 .vscode/**
 .gitignore
 .eslintrc.json
+eslint.config.*
 .prettierrc
 .prettierignore
+
+# Repository maintenance scripts (kept in git, not shipped)
+scripts/**
 
 # Documentation and session files
 docs/**

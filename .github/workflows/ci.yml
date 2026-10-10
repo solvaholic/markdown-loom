@@ -73,3 +73,28 @@ jobs:
 
       - name: Verify VSIX packaging
         run: npx vsce package --no-git-tag-version
+
+      - name: Verify VSIX contents
+        run: |
+          files="$(npx vsce ls)"
+          status=0
+
+          # Development-only paths must not ship in the package.
+          for path in eslint.config.mjs scripts/ src/ test-fixtures/ docs/ .github/ node_modules/; do
+            matches="$(printf '%s\n' "$files" | grep "^${path}" || true)"
+            if [ -n "$matches" ]; then
+              echo "::error::Development-only path '${path}' is included in the VSIX. Update .vscodeignore."
+              echo "$matches"
+              status=1
+            fi
+          done
+
+          # Required files must still ship.
+          for path in package.json README.md LICENSE LICENSES/obsidian-tasks.MIT.txt dist/extension.js; do
+            if ! printf '%s\n' "$files" | grep -qxF -- "$path"; then
+              echo "::error::Required file '${path}' is missing from the VSIX."
+              status=1
+            fi
+          done
+
+          exit "$status"
