@@ -42,6 +42,7 @@ The repo ships GitHub's defaults plus the `semver:*` labels below.
 
 Notes:
 - `semver:*` is a **planning-time** signal ("which train *can* this ride?"). It is not the same as recording which release an issue shipped in - Milestones do that.
+- On pull requests, `bug`, `enhancement`, `documentation`, `dependencies`, `github_actions`, and `semver:*` also decide which section of the release notes and `CHANGELOG.md` a change appears in (see `.github/release.yml`).
 - These axes are orthogonal: type, release-type, and suitability are independent and an issue carries one of each where applicable.
 
 ### Why no size/value labels
