@@ -1,6 +1,6 @@
 import * as path from 'path';
 import * as vscode from 'vscode';
-import MarkdownIt from 'markdown-it';
+import type MarkdownIt from 'markdown-it';
 import { NoteIndex, slugifyHeading } from '../index/noteIndex';
 import { parseWikiLinkBody } from './linkParsing';
 

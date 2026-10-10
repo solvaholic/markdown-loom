@@ -185,9 +185,6 @@
       }
     }
   },
-  "dependencies": {
-    "markdown-it": "^15.0.2"
-  },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@types/mocha": "^10.0.6",
@@ -198,6 +195,7 @@
     "@vscode/vsce": "^4.0.0",
     "eslint": "^10.11.0",
     "glob": "^13.0.6",
+    "markdown-it": "^15.0.2",
     "mocha": "^11.8.0",
     "typescript": "^5.5.4",
     "typescript-eslint": "^8.70.1"
