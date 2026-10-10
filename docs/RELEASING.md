@@ -20,6 +20,7 @@ steps is how we end up with a release whose demo GIF doesn't render (see
       generated artifacts are tracked. The script encodes the mechanically
       verifiable checks; still eyeball anything it can't (e.g. embedded version
       references in prose docs).
+- [ ] **GitHub CLI is authenticated.** `gh auth status` succeeds. `npm version` generates the changelog section by calling GitHub's release-notes API through `gh`, and it aborts if that call fails. Merged PRs should carry the labels that `.github/release.yml` categorizes (see "Release notes and changelog" below), and the local `main` you branch from must be pushed so GitHub can see the target commit.
 - [ ] **Repo visibility.** If the repo is private, `raw.githubusercontent.com`
       URLs return 404 for the Marketplace listing and for unauthenticated
       release-notes viewers. Either make the repo public before tagging, or
@@ -120,9 +121,17 @@ git switch -c "$RELEASE_BRANCH"
 
 # 2. Bump version + commit + annotated tag, all LOCALLY (npm does not push).
 #    The tag points at this bump commit; the fast-forward in step 4 preserves
-#    that SHA, so the tag stays valid.
+#    that SHA, so the tag stays valid. The `version` npm script generates the
+#    new CHANGELOG.md section and stages it, so it rides in this same commit.
 npm version "$VERSION_BUMP" -m "chore(release): v%s"
 VERSION="v$(node -p "require('./package.json').version")"
+
+# 2b. Verify the bump commit before anything is pushed: it should contain
+#     package.json, package-lock.json, and CHANGELOG.md, and the top section of
+#     CHANGELOG.md should be the new version with sensible categories.
+git show --stat --format=%s HEAD
+git show HEAD:CHANGELOG.md | sed -n '1,30p'
+npx vsce ls | grep -x CHANGELOG.md
 
 # 3. Build the VSIX, push the BRANCH (not the tag), and open the PR.
 npm run package                 # markdown-loom-<version>.vsix in repo root
@@ -139,8 +148,9 @@ git push origin main
 git push origin "$VERSION"
 
 # 6. Publish a GitHub Release with the VSIX attached.
-#    --generate-notes drafts release notes from merged PRs since the last tag;
-#    edit them afterward to call out user-facing changes.
+#    --generate-notes drafts release notes from merged PRs since the last tag,
+#    using the same .github/release.yml categories as CHANGELOG.md; edit them
+#    afterward to call out user-facing changes.
 gh release create "$VERSION" \
   "markdown-loom-${VERSION#v}.vsix" \
   --generate-notes
@@ -155,6 +165,28 @@ After `gh release create`, open the release in the browser and:
 - [ ] Confirm any embedded images/GIFs render (open in an incognito tab if the
       repo just went public; cached 404s are a thing).
 - [ ] Edit the auto-generated notes to lead with user-facing highlights.
+
+## Release notes and changelog
+
+`CHANGELOG.md` and the GitHub Release body are both derived from GitHub's generated release notes, so neither needs separate authoring. PRs are grouped by the labels in `.github/release.yml` (a PR lands in the first category it matches, and anything unlabeled falls into "Other changes"). Fix a mis-categorized entry at the source by relabeling or retitling the PR on GitHub, not by hand-editing the output.
+
+`npm version` runs `scripts/update-changelog.mjs` through the `version` npm script, after `package.json` is bumped and before npm creates the commit and tag. The script:
+
+- reads the new version from `package.json`, finds the previous `vX.Y.Z` tag from git, and asks GitHub for the notes between them with the current `HEAD` as the target (at that point `HEAD` is the tip of `main`, which GitHub already has);
+- prepends a `## vX.Y.Z - YYYY-MM-DD` section to `CHANGELOG.md` and runs `git add` on that one file only;
+- leaves an existing section for that version alone (pass `--force` to regenerate it), and exits non-zero without touching the file if `gh` is missing, unauthenticated, or returns something unusable.
+
+If the script fails, `npm version` stops after editing `package.json` and `package-lock.json` but before committing. Fix the cause (usually `gh auth login`, or pushing `main`), then discard the half-done bump with `git checkout -- package.json package-lock.json` and rerun `npm version`.
+
+To preview a section without bumping anything, run `npm run changelog` (it uses the version currently in `package.json`, writes `CHANGELOG.md`, and stages nothing; `git checkout -- CHANGELOG.md` undoes it).
+
+If you do need to change the section after `npm version` but before pushing, edit `CHANGELOG.md`, then amend the bump commit and move the tag onto it. This is safe only because nothing has been pushed yet:
+
+```sh
+git add CHANGELOG.md
+git commit --amend --no-edit
+git tag -f -a "$VERSION" -m "chore(release): $VERSION"
+```
 
 ## Marketplace publish (when ready)
 

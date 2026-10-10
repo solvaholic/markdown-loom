@@ -17,6 +17,9 @@ jobs:
       - name: Currency check (config/version drift)
         run: node scripts/currency-check.mjs
 
+      - name: Test release scripts
+        run: node --test scripts/*.test.mjs
+
   test:
     runs-on: ubuntu-latest
     steps:
@@ -90,7 +93,7 @@ jobs:
           done
 
           # Required files must still ship.
-          for path in package.json README.md LICENSE LICENSES/obsidian-tasks.MIT.txt dist/extension.js media/logo.png; do
+          for path in package.json README.md CHANGELOG.md LICENSE LICENSES/obsidian-tasks.MIT.txt dist/extension.js media/logo.png; do
             if ! printf '%s\n' "$files" | grep -qxF -- "$path"; then
               echo "::error::Required file '${path}' is missing from the VSIX."
               status=1

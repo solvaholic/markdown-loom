@@ -22,6 +22,7 @@ These scripts exist in `package.json`. Use them; don't invent new ones without d
 - `npm run lint` - ESLint over `src/**/*.ts`.
 - `npm test` - runs `pretest` (compile + lint) then VS Code integration tests.
 - `npm run package` - builds the VSIX via `vsce`.
+- `npm run test:scripts` - node:test unit tests for `scripts/*.mjs` (no VS Code needed).
 
 Dev env is VS Code + Dev Containers (`mcr.microsoft.com/devcontainers/typescript-node:1-22-bookworm`). Format-on-save uses Prettier (`.vscode/settings.json`); ESLint is in flat-config mode.
 
@@ -58,7 +59,10 @@ These rules exist because fixture and workspace edits have silently ridden along
 - See `docs/RELEASING.md` for the full checklist. Don't improvise the release
   flow from memory; follow the doc.
 - Use `npm version <patch|minor|major>` to bump and tag in one step. Don't
-  hand-edit `package.json` for version changes.
+  hand-edit `package.json` for version changes. The `version` npm script
+  also generates the new `CHANGELOG.md` section (from GitHub's release notes,
+  categorized by `.github/release.yml`) and stages it into the bump commit;
+  don't hand-write changelog entries.
 - `scripts/make-demo-gif.sh` is the canonical way to regenerate
   `docs/demo.gif` from `docs/demo.mov`. The MOV source is git-ignored.
 - Before tagging a release, confirm repo visibility. If the repo is private,

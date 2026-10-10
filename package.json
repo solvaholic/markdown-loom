@@ -30,6 +30,9 @@
     "pretest": "node -e \"require('fs').rmSync('dist', {recursive:true,force:true})\" && npm run compile && npm run lint",
     "lint": "eslint src",
     "currency-check": "node scripts/currency-check.mjs",
+    "changelog": "node scripts/update-changelog.mjs",
+    "test:scripts": "node --test scripts/*.test.mjs",
+    "version": "node scripts/update-changelog.mjs",
     "test": "vscode-test",
     "package": "vsce package"
   },
