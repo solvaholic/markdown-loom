@@ -27,7 +27,8 @@ vsc-extension-quickstart.md
 tmp/**
 *.vsix
 
-# Dependencies (bundled in dist/)
+# Dependencies: not shipped. There is no bundling step and no npm runtime
+# dependency; VS Code supplies the markdown-it instance at runtime.
 node_modules/**
 
 # Git

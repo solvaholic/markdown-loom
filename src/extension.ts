@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import MarkdownIt from 'markdown-it';
+import type MarkdownIt from 'markdown-it';
 import { NoteIndex } from './index/noteIndex';
 import { WikiLinkCompletionProvider } from './providers/linkCompletionProvider';
 import { WikiLinkDefinitionProvider } from './providers/linkDefinitionProvider';
