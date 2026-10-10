@@ -241,9 +241,10 @@ function main() {
 
   // Stage only the changelog, and only inside a real `npm version` that will
   // commit. `npm run version` and `--no-git-tag-version` must not touch the index.
+  // npm exports an empty string for --no-git-tag-version and nothing by default.
+  const gitTag = process.env.npm_config_git_tag_version;
   const inNpmVersion =
-    process.env.npm_command === "version" &&
-    process.env.npm_config_git_tag_version !== "false";
+    process.env.npm_command === "version" && gitTag !== "" && gitTag !== "false";
   if (inNpmVersion && !opts.dryRun) {
     run("git", ["add", "--", opts.changelog], { cwd: repoRoot });
     console.log("CHANGELOG.md: staged for the version commit.");
