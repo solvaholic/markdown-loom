@@ -26,9 +26,10 @@ steps is how we end up with a release whose demo GIF doesn't render (see
       release-notes viewers. Either make the repo public before tagging, or
       host demo assets somewhere that doesn't require auth.
 - [ ] `package.json` metadata is current: `displayName`, `description`,
-      `publisher`, `repository.url`, `homepage`, `bugs.url`, `categories`,
-      `engines.vscode`.
+      `publisher`, `repository.url`, `homepage`, `bugs.url`, `qna`,
+      `categories`, `keywords`, `engines.vscode`.
 - [ ] `package.json#icon` points to `media/logo.png`, an original 256x256 PNG included in `npx vsce ls` and the built VSIX. Keep `media/logo.svg` as source artwork in Git only, excluded by `.vscodeignore`. Install the VSIX in a clean VS Code profile and confirm the icon appears in the Extensions view.
+- [ ] `package.json#qna` opens the project question form, and `SUPPORT.md` is included in `npx vsce ls` and the built VSIX.
 
 ## Smoke test the dev build
 
@@ -190,10 +191,20 @@ git tag -f -a "$VERSION" -m "chore(release): $VERSION"
 
 ## Marketplace publish (when ready)
 
-We don't auto-publish to the VS Code Marketplace yet. When we do:
+The permanent Marketplace extension ID is `solvaholic.markdown-loom`. Before the first publish, verify the manifest still produces that ID and a public Marketplace query returns no existing extension:
+
+```sh
+node -e "const p = require('./package.json'); console.log(\`\${p.publisher}.\${p.name}\`)"
+npx vsce show solvaholic.markdown-loom
+```
+
+The first command must print `solvaholic.markdown-loom`. Before the first publish, the second command must report that the extension was not found; if it returns a listing, stop and resolve the identity conflict.
+
+We don't auto-publish to the VS Code Marketplace yet. Sign in to the existing `solvaholic` publisher, then upload the packaged VSIX:
 
 ```sh
 # Requires a Personal Access Token with Marketplace publish scope.
+npx vsce login solvaholic
 npx vsce publish --packagePath markdown-loom-<version>.vsix
 ```
 

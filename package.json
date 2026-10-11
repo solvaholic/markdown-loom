@@ -4,12 +4,24 @@
   "description": "Plain-markdown note taking with wikilinks and backlinks.",
   "icon": "media/logo.png",
   "version": "0.4.2",
-  "publisher": "markdown-loom",
+  "publisher": "solvaholic",
   "engines": {
     "vscode": "^1.125.0"
   },
   "categories": [
     "Other"
+  ],
+  "keywords": [
+    "markdown",
+    "wikilinks",
+    "backlinks",
+    "notes",
+    "knowledge-base",
+    "obsidian",
+    "zettelkasten",
+    "wiki",
+    "note-taking",
+    "attachments"
   ],
   "repository": {
     "type": "git",
@@ -19,6 +31,7 @@
   "bugs": {
     "url": "https://github.com/solvaholic/markdown-loom/issues"
   },
+  "qna": "https://github.com/solvaholic/markdown-loom/issues/new?template=question.yml",
   "license": "MIT",
   "activationEvents": [
     "onLanguage:markdown"
