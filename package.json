@@ -2,6 +2,7 @@
   "name": "markdown-loom",
   "displayName": "Markdown Loom",
   "description": "Plain-markdown note taking with wikilinks and backlinks.",
+  "icon": "media/logo.png",
   "version": "0.4.2",
   "publisher": "markdown-loom",
   "engines": {

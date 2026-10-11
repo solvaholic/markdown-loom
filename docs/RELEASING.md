@@ -27,6 +27,7 @@ steps is how we end up with a release whose demo GIF doesn't render (see
 - [ ] `package.json` metadata is current: `displayName`, `description`,
       `publisher`, `repository.url`, `homepage`, `bugs.url`, `categories`,
       `engines.vscode`.
+- [ ] `package.json#icon` points to `media/logo.png`, an original 256x256 PNG included in `npx vsce ls` and the built VSIX. Keep `media/logo.svg` as source artwork in Git only, excluded by `.vscodeignore`. Install the VSIX in a clean VS Code profile and confirm the icon appears in the Extensions view.
 
 ## Smoke test the dev build
 

@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="256" height="256" role="img" aria-labelledby="title description">
+  <title id="title">Markdown Loom woven hashtag</title>
+  <desc id="description">A heavyweight hashtag on Midnight Slate. Crisp Off-White vertical threads and Electric Cyan horizontal threads alternate over and under at all four crossings, preserving a clean Markdown heading symbol at 32 pixels.</desc>
+
+  <defs>
+    <clipPath id="icon">
+      <rect width="64" height="64" rx="14.222"/>
+    </clipPath>
+    <linearGradient id="cast-shadow" x1="10" y1="10" x2="64" y2="64" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#020617" stop-opacity=".4"/>
+      <stop offset="1" stop-color="#020617" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="shade-down" x2="0" y2="1">
+      <stop stop-color="#020617" stop-opacity=".42"/>
+      <stop offset="1" stop-color="#020617" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="shade-up" x2="0" y2="1">
+      <stop stop-color="#020617" stop-opacity="0"/>
+      <stop offset="1" stop-color="#020617" stop-opacity=".3"/>
+    </linearGradient>
+    <linearGradient id="shade-right">
+      <stop stop-color="#020617" stop-opacity=".42"/>
+      <stop offset="1" stop-color="#020617" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="shade-left">
+      <stop stop-color="#020617" stop-opacity="0"/>
+      <stop offset="1" stop-color="#020617" stop-opacity=".3"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="64" height="64" rx="14.222" fill="#0F172A"/>
+  <g clip-path="url(#icon)">
+    <path fill="url(#cast-shadow)" d="M18 10H26L70 54V98H62L18 54Z M38 10H46L90 54V98H82L38 54Z M10 18H54L98 62V70H54L10 26Z M10 38H54L98 82V90H54L10 46Z"/>
+    <g fill="#F8FAFC">
+      <rect x="18" y="10" width="8" height="44" rx=".75"/>
+      <rect x="38" y="10" width="8" height="44" rx=".75"/>
+    </g>
+    <g fill="#06B6D4">
+      <rect x="10" y="18" width="44" height="8" rx=".75"/>
+      <rect x="10" y="38" width="44" height="8" rx=".75"/>
+    </g>
+
+    <!-- Restore the two vertical overpasses to make a checkerboard weave. -->
+    <path fill="#F8FAFC" d="M38 18H46V26H38Z M18 38H26V46H18Z"/>
+
+    <g fill="url(#shade-up)">
+      <rect x="18" y="16" width="8" height="2"/>
+      <rect x="38" y="36" width="8" height="2"/>
+    </g>
+    <g fill="url(#shade-down)">
+      <rect x="18" y="26" width="8" height="2"/>
+      <rect x="38" y="46" width="8" height="2"/>
+    </g>
+    <g fill="url(#shade-left)">
+      <rect x="36" y="18" width="2" height="8"/>
+      <rect x="16" y="38" width="2" height="8"/>
+    </g>
+    <g fill="url(#shade-right)">
+      <rect x="46" y="18" width="2" height="8"/>
+      <rect x="26" y="38" width="2" height="8"/>
+    </g>
+  </g>
+</svg>
