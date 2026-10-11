@@ -522,7 +522,7 @@ If users start asking for working preview click-to-create, the most
 viable option is a **registered URI handler**:
 
 - Render unresolved wikilinks in preview as
-  `vscode://markdown-loom.markdown-loom/openWikiLink?target=…&source=…`
+  `vscode://solvaholic.markdown-loom/openWikiLink?target=…&source=…`
   instead of `#`.
 - Register via `vscode.window.registerUriHandler` and route the URI
   through the existing `markdownLoom.openWikiLink` flow (so both

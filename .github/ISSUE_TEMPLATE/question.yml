@@ -1,0 +1,11 @@
+name: Ask a question
+description: Ask about using Markdown Loom or something the documentation does not explain.
+labels:
+  - question
+body:
+  - type: textarea
+    id: question
+    attributes:
+      label: What would you like to know?
+    validations:
+      required: true
