@@ -22,6 +22,9 @@ eslint.config.*
 # Repository maintenance scripts (kept in git, not shipped)
 scripts/**
 
+# Editable logo source (the PNG is the extension icon)
+media/logo.svg
+
 # Documentation and session files
 docs/**
 copilot-session-*.md

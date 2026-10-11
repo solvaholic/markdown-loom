@@ -80,7 +80,7 @@ jobs:
           status=0
 
           # Development-only paths (anchored regexes) must not ship in the package.
-          for pattern in '^eslint\.config\.' '^scripts/' '^src/' '^test-fixtures/' '^docs/' '^\.github/' '^node_modules/'; do
+          for pattern in '^eslint\.config\.' '^scripts/' '^src/' '^test-fixtures/' '^docs/' '^\.github/' '^node_modules/' '^media/logo\.svg$'; do
             matches="$(printf '%s\n' "$files" | grep -E -- "$pattern" || true)"
             if [ -n "$matches" ]; then
               echo "::error::Development-only path matching '${pattern}' is included in the VSIX. Update .vscodeignore."
@@ -90,7 +90,7 @@ jobs:
           done
 
           # Required files must still ship.
-          for path in package.json README.md LICENSE LICENSES/obsidian-tasks.MIT.txt dist/extension.js; do
+          for path in package.json README.md LICENSE LICENSES/obsidian-tasks.MIT.txt dist/extension.js media/logo.png; do
             if ! printf '%s\n' "$files" | grep -qxF -- "$path"; then
               echo "::error::Required file '${path}' is missing from the VSIX."
               status=1
