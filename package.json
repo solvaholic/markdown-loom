@@ -3,7 +3,7 @@
   "displayName": "Markdown Loom",
   "description": "Plain-markdown note taking with wikilinks and backlinks.",
   "icon": "media/logo.png",
-  "version": "0.4.2",
+  "version": "0.4.3",
   "publisher": "solvaholic",
   "engines": {
     "vscode": "^1.125.0"
