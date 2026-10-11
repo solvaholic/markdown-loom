@@ -221,9 +221,7 @@ To re-record:
 
 1. Open `test-fixtures/markdown-loom.code-workspace` in an Extension
    Development Host.
-2. Show, in order: wikilink completion (type `[[Foo`), follow link
-   (Cmd+Click or F12), Backlinks panel populating, task toggle with
-   Cmd+Alt+T appending a `✅ <date>`.
+2. Show, in order: wikilink completion (type `[[Foo`), follow link (Cmd+Click or F12), Backlinks panel populating. The frozen task toggle is not required in the demo; it remains part of the release smoke test above.
 3. Save the recording to `docs/demo.mov`.
 4. Convert with `scripts/make-demo-gif.sh` (see that script for tunable
    width/fps/quality).

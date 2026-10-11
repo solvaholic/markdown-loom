@@ -562,8 +562,11 @@ markdown-loom/
 │   ├── index/
 │   │   └── noteIndex.ts       // In-memory note + backlink index
 │   ├── providers/
-│   │   ├── linkProvider.ts    // Wikilink completion & navigation
-│   │   ├── linkParsing.ts     // Wikilink target parsing
+│   │   ├── linkCompletionProvider.ts   // Wikilink completion
+│   │   ├── linkDefinitionProvider.ts   // File, heading & block definitions
+│   │   ├── linkDocumentLinkProvider.ts // Clickable editor links
+│   │   ├── linkCommands.ts             // Open link & click-to-create handling
+│   │   ├── linkParsing.ts              // Wikilink target parsing
 │   │   └── backlinksProvider.ts
 │   ├── tasks/                 // Frozen; toggle + parser
 │   ├── commands/
@@ -580,7 +583,8 @@ markdown-loom/
 - `vscode.languages.registerCompletionItemProvider` - autocomplete
 - `vscode.languages.registerDefinitionProvider` - go to definition
   (file, heading line, and block id)
-- `vscode.window.createTreeView` - backlinks panel
+- `vscode.languages.registerDocumentLinkProvider` - clickable editor links
+- `vscode.window.registerTreeDataProvider` - backlinks panel
 - `vscode.workspace.findFiles` - initial index build
 - `vscode.workspace.createFileSystemWatcher` - incremental index updates
 - `vscode.workspace.onWillRenameFiles` - return a `WorkspaceEdit` to
@@ -603,13 +607,20 @@ markdown-loom/
   },
   "markdownLoom.taskDateFormat": {
     "type": "string",
+    "enum": ["YYYY-MM-DD"],
     "default": "YYYY-MM-DD",
-    "description": "Date format for the auto-stamped done date on the (frozen) task toggle."
+    "description": "Reserved for future use. Task dates are always written in ISO 8601 (YYYY-MM-DD) on the (frozen) task toggle; alternative formats are not currently honored."
   },
   "markdownLoom.autoAddDoneDate": {
     "type": "boolean",
     "default": true,
     "description": "Automatically add a done date when toggling a task to done."
+  },
+  "markdownLoom.indexStatusSampleSize": {
+    "type": "number",
+    "default": 10,
+    "minimum": 1,
+    "description": "Number of indexed note paths shown as a sample in the 'Show Index Status' command output."
   },
   "markdownLoom.attachmentExtensions": {
     "type": "array",
@@ -641,10 +652,6 @@ markdown-loom/
   }
 }
 ```
-
-`markdownLoom.queryLimitDefault` is **deprecated** and will be removed
-in a future release: the Phase 2 task query work that motivated it is
-no longer planned.
 
 `markdownLoom.newFileLocation` and `markdownLoom.newFileCustomPath`
 also govern where pasted attachments are written; there is no separate
