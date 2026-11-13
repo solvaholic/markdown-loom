@@ -215,6 +215,6 @@
     "markdown-it": "^15.0.3",
     "mocha": "^11.8.0",
     "typescript": "^5.5.4",
-    "typescript-eslint": "^8.72.1"
+    "typescript-eslint": "^8.72.2"
   }
 }
