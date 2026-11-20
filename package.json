@@ -209,12 +209,12 @@
     "@types/vscode": "1.125.0",
     "@vscode/test-cli": "^0.0.15",
     "@vscode/test-electron": "^3.1.0",
-    "@vscode/vsce": "^4.1.0",
-    "eslint": "^10.14.0",
-    "glob": "^14.0.4",
+    "@vscode/vsce": "^4.1.1",
+    "eslint": "^10.15.0",
+    "glob": "^14.0.6",
     "markdown-it": "^15.0.3",
     "mocha": "^11.8.0",
     "typescript": "^5.5.4",
-    "typescript-eslint": "^8.72.2"
+    "typescript-eslint": "^8.73.0"
   }
 }
